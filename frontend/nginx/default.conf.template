@@ -31,9 +31,17 @@ server {
     }
 
     # Hashed bundles are immutable; the HTML shell must always be re-validated.
-    location /assets/ {
+    # `^~` keeps this prefix ahead of the extension regex below.
+    location ^~ /assets/ {
+        try_files $uri =404;
         expires 1y;
         add_header Cache-Control "public, immutable";
+    }
+
+    # Any other static file is served as-is or answered with 404 — never with the SPA
+    # shell, which would turn a missing script into a confusing "HTML is not JS" error.
+    location ~* \.(?:js|mjs|css|map|json|txt|xml|ico|svg|png|jpg|jpeg|gif|webp|avif|woff2?|ttf)$ {
+        try_files $uri =404;
     }
 
     location = /index.html {
