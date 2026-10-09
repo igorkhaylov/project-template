@@ -1,0 +1,22 @@
+name: ${PROJECT_NAME:-project-template}-test
+
+# Backend test runner — what CI runs. The suite uses the minimal configuration
+# (config.settings.test): sqlite in-memory, locmem cache/email, eager Celery, in-memory
+# storage. No db/redis/minio services are needed, so this file is standalone.
+#
+# Also used to produce the API schema deterministically (no .env, ENVIRONMENT=test):
+#   make api-schema   -> docker compose ... run --rm -T backend python manage.py spectacular
+#
+# Frontend checks do not need Docker: `cd frontend && npm ci && npm run lint && npm test`.
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      # Include the dev dependency group so pytest is available in the image.
+      args:
+        INSTALL_DEV: "true"
+    environment:
+      ENVIRONMENT: test
+    command: pytest --tb=short -q
+    restart: "no"

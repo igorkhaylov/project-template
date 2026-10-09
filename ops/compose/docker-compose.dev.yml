@@ -1,0 +1,100 @@
+name: ${PROJECT_NAME:-project-template}-dev
+
+# Development stack: Postgres, Redis, an IDLE backend container with backend/ bind-mounted
+# (run commands via `make dev <target>`, the server via `make dev run`), and the nginx
+# edge on APP_PORT. The frontend dev server is NOT a container: run it on the host
+# (`make fe-dev`, i.e. Vite on :5173). The edge proxies `/` to it, so the whole app is
+# reachable at http://localhost:APP_PORT, and Vite's own proxy makes it reachable at
+# http://localhost:5173 too — both same-origin with the API.
+#
+# Run from the repo root via the Makefile (`--project-directory .`).
+
+
+# Caps Docker's json-file logs so they can't fill the disk (default driver has no rotation).
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    env_file:
+      - ./.env
+    logging: *default-logging
+    # Lets the backend reach the shared host MinIO via host.docker.internal on Linux
+    # (no-op/automatic on Docker Desktop).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Source is bind-mounted (workdir /app/backend, venv at /opt/venv outside the mount).
+      - ./backend:/app/backend
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - 8000
+    command: sleep infinity
+    restart: unless-stopped
+
+  redis:
+    image: redis:8
+    logging: *default-logging
+    expose:
+      - 6379
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      retries: 5
+      timeout: 3s
+    restart: unless-stopped
+
+  db:
+    image: postgres:17.4
+    logging: *default-logging
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    expose:
+      - 5432
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 3s
+      retries: 5
+      timeout: 3s
+    restart: unless-stopped
+
+  # NOTE: MinIO is a single SHARED host service, not a per-project container.
+  # Provision it once with `make minio` (ops/scripts/ensure_minio.sh). The backend
+  # reaches it via DJANGO_MINIO_ENDPOINT=http://host.docker.internal:9000.
+
+  nginx:
+    image: nginx:stable-alpine
+    logging: *default-logging
+    volumes:
+      - ./ops/nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "${APP_PORT:-8050}:80"
+    # `/` is proxied to the Vite dev server on the host (frontend/, `make fe-dev`).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+
+volumes:
+  postgres-data:
+  redis-data:

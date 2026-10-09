@@ -1,0 +1,102 @@
+[project]
+name = "project-template-backend"
+version = "0.1.0"
+description = ""
+authors = [{ name = "igorkhaylov" }]
+requires-python = ">=3.13,<4"
+dependencies = [
+    # Django 5.2 is LTS (supported until 04/2028); the <6 cap is deliberate — moving to 6.x
+    # is a separate decision because of the third-party ecosystem (modeltranslation, stdimage fork).
+    "django>=5.2.17,<6.0.0",
+    "psycopg[binary]>=3.3.4,<4.0.0",
+    "pillow>=12.3.0,<13.0.0",
+    "python-decouple>=3.8,<4.0",
+    "django-cors-headers>=4.9.0,<5.0.0",
+    "djangorestframework>=3.18.0,<4.0.0",
+    "gunicorn>=26.0.0,<27.0.0",
+    "setproctitle>=1.3.7,<2.0.0",
+    "django-rosetta>=0.10.3,<0.11.0",
+    "django-modeltranslation>=0.20.3,<0.21.0",
+    "drf-spectacular>=0.30.0,<0.31.0",
+    "django-filter>=26.1,<27.0",
+    "python-dateutil>=2.9.0.post0,<3.0.0",
+    # redis-py 7+/8+ exists, but kombu's redis transport requires redis<6.5; the [redis]
+    # extra on celery below makes the resolver enforce that, so this range stays wide.
+    "redis>=6.4.0,<7.0.0",
+    "celery[redis]>=5.6.3,<6.0.0",
+    "django-storages[s3]>=1.14.6,<2.0.0",
+    "django-cleanup>=9.0.0,<10.0.0",
+    "django-structlog>=10.1.0,<11.0.0",
+    "structlog>=26.1.0",
+    "django-stdimage @ git+https://github.com/igorkhaylov/django-stdimage.git@v1.1.0",
+    "dj-database-url>=3.0,<4.0",
+    "django-celery-beat>=2.8,<3.0",
+]
+
+# Optional features ("extras"): NOT installed by default. firebase-admin alone drags in
+# ~28 transitive packages (~15 MB of wheels: grpcio, cryptography, the google-* stack),
+# so it only makes sense to pay that cost in projects that actually send pushes.
+# The code that needs it (apps/common/firebase.py) is inert until you opt in:
+#   locally:    uv sync --extra push
+#   in Docker:  add `--extra push` to EVERY `uv sync` invocation — both branches of the
+#               if/else in the Dockerfile builder stage AND the one in Dockerfile.dev
+#               (the dev container's venv is baked into its image, not synced from host)
+# The extra is resolved and pinned in uv.lock either way, so enabling it later
+# changes nothing about the rest of the dependency tree.
+[project.optional-dependencies]
+push = [
+    "firebase-admin>=7.5.0,<8.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-django>=4.13.0",
+    "django-debug-toolbar>=7.0.0",
+    "ruff>=0.16.2",
+    "pre-commit>=4.6.1",
+    "pyright>=1.1.411",
+]
+
+# This project is an application, not a distributable package: uv only manages the
+# environment and never tries to build/install the project root itself.
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+python_files = ["tests.py", "test_*.py"]
+testpaths = ["tests"]
+pythonpath = ["."]
+# --no-migrations: pytest-django builds the test schema directly from the models, so the
+# suite is independent of migration state. Migration/model drift is caught separately by
+# tests/test_common.py::test_migrations_in_sync (makemigrations --check).
+addopts = "--no-migrations"
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+extend-exclude = ["**/migrations/**"]
+
+[tool.ruff.lint]
+# E/F pycodestyle+pyflakes, I isort, UP pyupgrade, B bugbear, C4 comprehensions,
+# SIM simplify, DJ flake8-django, RUF ruff-native.
+select = ["E", "F", "I", "UP", "B", "C4", "SIM", "DJ", "RUF"]
+# RUF012 wants typing.ClassVar on every mutable class attribute. That fires on idiomatic
+# Django/DRF Meta options (constraints, indexes, fields, fieldsets, ...) and on plain class
+# constants — too noisy for a Django codebase, so it is disabled project-wide.
+ignore = ["RUF012"]
+
+[tool.ruff.lint.per-file-ignores]
+# Star-imports / re-exports are intentional in the split settings package and __init__ files.
+# Globs are prefixed with **/ so they match whether ruff runs from backend/ or the repo root
+# (pre-commit invokes it from the root, passing backend/config/settings/... paths).
+"**/__init__.py" = ["F401", "F403", "F405"]
+"**/config/settings/*" = ["F401", "F403", "F405"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["config", "users", "common"]
+section-order = ["future", "standard-library", "django", "third-party", "first-party", "local-folder"]
+
+[tool.ruff.lint.isort.sections]
+django = ["django"]

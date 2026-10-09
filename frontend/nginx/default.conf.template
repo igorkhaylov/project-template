@@ -1,0 +1,47 @@
+# Rendered at container start by the nginx image's entrypoint (envsubst, APP_* only —
+# see NGINX_ENVSUBST_FILTER in the Dockerfile). nginx variables ($uri, $host) are kept.
+server {
+    listen 8080;
+    listen [::]:8080;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    access_log /dev/stdout;
+    error_log /dev/stderr warn;
+
+    # Probe for the Compose healthcheck and Kubernetes liveness/readiness.
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # Runtime configuration (same shape as public/config.js in dev). The SPA reads it
+    # before anything else, so the same image works in every environment.
+    location = /config.js {
+        default_type application/javascript;
+        add_header Cache-Control "no-store";
+        return 200 'window.__APP_CONFIG__ = { apiBaseUrl: "${APP_API_BASE_URL}", environment: "${APP_ENVIRONMENT}" };\n';
+    }
+
+    location ~ /\. {
+        deny all;
+    }
+
+    # Hashed bundles are immutable; the HTML shell must always be re-validated.
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+    }
+
+    # SPA history fallback.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

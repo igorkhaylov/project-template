@@ -1,0 +1,27 @@
+# syntax=docker/dockerfile:1
+#
+# Development image. backend/ is bind-mounted at /app/backend by
+# ops/compose/docker-compose.dev.yml, so the virtualenv lives at /opt/venv (OUTSIDE the
+# mount) to avoid being shadowed. Includes the dev dependency group and basic tooling.
+FROM python:3.13-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=0 \
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    PATH="/opt/venv/bin:$PATH"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential python3-dev libpq-dev gcc git curl gettext \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir uv
+
+WORKDIR /app/backend
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen
+
+# Kept alive by docker-compose; run commands via `make dev <target>`.
+CMD ["sleep", "infinity"]
