@@ -1,0 +1,142 @@
+openapi: 3.0.3
+info:
+  title: ProjectTemplate API
+  version: 0.0.1
+  description: Project description
+paths:
+  /api/v1/meta/:
+    get:
+      operationId: api_v1_meta_retrieve
+      description: |-
+        ``GET /api/v1/meta/``: app name, deployed version, environment and languages.
+
+        Public on purpose: the SPA calls it first to label the build it is talking to, and
+        it doubles as the end-to-end example of the API contract flow (DRF view ->
+        drf-spectacular schema -> api/openapi.yaml -> generated TypeScript types).
+      summary: Build and runtime metadata
+      tags:
+      - api
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Meta'
+          description: ''
+  /healthz/:
+    get:
+      operationId: healthz_retrieve
+      description: |-
+        ``GET /healthz/``: liveness probe. No dependencies by design.
+
+        At runtime ``common.middleware.HealthCheckMiddleware`` answers this path before the
+        URL resolver (so probes work with any ``Host`` header); the view documents the
+        contract and is the fallback if the middleware is removed.
+      summary: Liveness probe
+      tags:
+      - health
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: ''
+  /readyz/:
+    get:
+      operationId: readyz_retrieve
+      description: |-
+        ``GET /readyz/``: readiness probe — database and cache reachable, else 503.
+
+        Same middleware note as ``HealthzView``.
+      summary: Readiness probe
+      tags:
+      - health
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+          description: ''
+components:
+  schemas:
+    Health:
+      type: object
+      description: '``GET /healthz/`` — liveness.'
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStateEnum'
+      required:
+      - status
+    HealthStateEnum:
+      enum:
+      - ok
+      - error
+      type: string
+      description: |-
+        * `ok` - ok
+        * `error` - error
+    Language:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+      required:
+      - code
+      - name
+    Meta:
+      type: object
+      description: Public build and runtime facts a client needs before it knows anything
+        else.
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        environment:
+          type: string
+        languages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Language'
+      required:
+      - environment
+      - languages
+      - name
+      - version
+    Readiness:
+      type: object
+      description: '``GET /readyz/`` — readiness; HTTP 503 when any check is ``error``.'
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStateEnum'
+        checks:
+          $ref: '#/components/schemas/ReadinessChecks'
+      required:
+      - checks
+      - status
+    ReadinessChecks:
+      type: object
+      properties:
+        database:
+          $ref: '#/components/schemas/HealthStateEnum'
+        cache:
+          $ref: '#/components/schemas/HealthStateEnum'
+      required:
+      - cache
+      - database

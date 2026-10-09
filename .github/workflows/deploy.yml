@@ -1,0 +1,124 @@
+name: Deploy
+
+# SSH-based deploy from a GitHub-hosted runner to a Docker Compose host. The SERVER
+# logs in to GHCR, pins the new image(s) in its ./.env and runs
+# ops/scripts/deploy.sh — pull + `up -d`, which recreates only the services whose image
+# changed. A backend deploy never restarts the frontend container and vice versa.
+#
+# Triggers
+#   * automatically after "Backend" or "Frontend" succeeds on master — deploys ONLY the
+#     component that was just built, pinned to its sha-<full-sha> — but only when the
+#     repository variable AUTO_DEPLOY is "true" (opt-in; the bare template skips it).
+#   * manually (workflow_dispatch): choose the environment and a tag per component;
+#     leave a tag empty to keep what the server currently pins.
+#
+# Per-environment secrets live in GitHub Environments (prod / dev):
+#   SSH_HOST  SSH_USER  SSH_PORT  SSH_KEY   — connection (dedicated deploy keypair)
+#   SSH_FINGERPRINT                         — server host-key SHA256 (host-key pinning)
+#   DEPLOY_PATH                             — path to the repo checkout on the server
+#   GHCR_USER  GHCR_PAT                     — GitHub user + PAT with `read:packages` only
+#
+# The server holds a git checkout at DEPLOY_PATH (compose files, nginx edge config,
+# scripts) and its own ./.env (provisioned out-of-band; CI never writes it).
+
+on:
+  workflow_run:
+    workflows: ["Backend", "Frontend"]
+    types: [completed]
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        type: choice
+        options: [prod, dev]
+        default: prod
+      backend_tag:
+        description: "Backend image tag (latest, vX.Y.Z or sha-<full-sha>); empty = unchanged"
+        default: ""
+      frontend_tag:
+        description: "Frontend image tag (latest, vX.Y.Z or sha-<full-sha>); empty = unchanged"
+        default: ""
+
+permissions:
+  contents: read
+
+# Never let two deploys to the same environment overlap. Queue instead of cancel.
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || 'prod' }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (vars.AUTO_DEPLOY == 'true' && github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'prod' }}
+    steps:
+      - name: Resolve what to deploy
+        id: plan
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            sha="${{ github.event.workflow_run.head_sha }}"
+            case "${{ github.event.workflow_run.name }}" in
+              Backend)  echo "backend_tag=sha-$sha"  >> "$GITHUB_OUTPUT" ;;
+              Frontend) echo "frontend_tag=sha-$sha" >> "$GITHUB_OUTPUT" ;;
+            esac
+            echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend_tag=${{ github.event.inputs.backend_tag }}"   >> "$GITHUB_OUTPUT"
+            echo "frontend_tag=${{ github.event.inputs.frontend_tag }}" >> "$GITHUB_OUTPUT"
+            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          port: ${{ secrets.SSH_PORT }}
+          key: ${{ secrets.SSH_KEY }}
+          # Host-key pinning (recommended). Leave the secret unset only if you accept TOFU.
+          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
+          envs: GHCR_USER,GHCR_PAT,DEPLOY_PATH,DEPLOY_SHA,IMAGE_REPO,BACKEND_TAG,FRONTEND_TAG
+          script: |
+            set -euo pipefail
+            cd "$DEPLOY_PATH"
+
+            # Sync compose files, nginx edge config and scripts to the deployed commit
+            # (./.env is gitignored and untouched). No `git clean`: it would delete .env.
+            git fetch --all --prune
+            git reset --hard "$DEPLOY_SHA"
+
+            echo "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+
+            # Docker refs must be lowercase (github.repository may contain uppercase).
+            IMAGE_REPO=$(echo "$IMAGE_REPO" | tr '[:upper:]' '[:lower:]')
+            args=""
+            [ -n "$BACKEND_TAG" ]  && args="$args --backend ghcr.io/$IMAGE_REPO/backend:$BACKEND_TAG"
+            [ -n "$FRONTEND_TAG" ] && args="$args --frontend ghcr.io/$IMAGE_REPO/frontend:$FRONTEND_TAG"
+            # shellcheck disable=SC2086
+            ./ops/scripts/deploy.sh $args
+
+            docker logout ghcr.io
+        env:
+          GHCR_USER: ${{ secrets.GHCR_USER }}
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_SHA: ${{ steps.plan.outputs.sha }}
+          IMAGE_REPO: ${{ github.repository }}
+          BACKEND_TAG: ${{ steps.plan.outputs.backend_tag }}
+          FRONTEND_TAG: ${{ steps.plan.outputs.frontend_tag }}
+
+# ---------------------------------------------------------------------------------------
+# OPTION: let CI write the server's .env from a secret (NOT the default — secrets then
+# live in GitHub and are overwritten every deploy). Add a secret DOTENV with the full
+# .env contents, add DOTENV to `envs:` above, and prepend to the script:
+#
+#   cd "$DEPLOY_PATH"
+#   umask 077
+#   printf '%s' "$DOTENV" > .env
+#
+# Prefer keeping .env on the server (the default above): fewer places hold secrets.
+# ---------------------------------------------------------------------------------------

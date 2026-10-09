@@ -1,0 +1,9 @@
+node_modules
+dist
+coverage
+*.tsbuildinfo
+.vite
+
+# Local overrides only (.env.example is the reference)
+.env.local
+.env.*.local

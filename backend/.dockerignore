@@ -1,0 +1,38 @@
+# Build context is backend/ itself (see Dockerfile). Keep the context small and keep
+# anything secret or machine-specific out of the pushed image.
+
+# VCS
+.git
+
+# Python build noise
+**/.venv/
+**/__pycache__/
+**/*.pyc
+**/.ruff_cache/
+**/.pytest_cache/
+.coverage
+htmlcov/
+
+# Runtime / local artifacts (static+media live in S3; .mo files are compiled in the image)
+media/
+static/
+logs/
+celerybeat-schedule*
+**/*.mo
+
+# Docs & env
+*.md
+.env
+.env.*
+.dockerignore
+.gitignore
+
+# Credentials — the runtime stage does `COPY . .`, so anything matching these patterns
+# must never reach the build context or it gets baked into the pushed image. A PUBLIC
+# cert the image legitimately needs (e.g. a managed-Postgres CA bundle) must be
+# re-included with a negation line below these, e.g. `!certs/ca.pem`.
+**/firebase_credentials/
+**/*credentials*.json
+**/*service*account*.json
+**/*.pem
+**/*.key

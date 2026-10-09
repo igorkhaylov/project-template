@@ -1,0 +1,209 @@
+name: ${PROJECT_NAME:-project-template}
+
+# Local production-like stack: builds BOTH images from source and runs them the way
+# prod does (release step, gunicorn, static SPA behind the nginx edge).
+#
+# Run from the repo root through the Makefile (`make up`): it passes
+# `--project-directory .`, so every relative path here (./backend, ./frontend,
+# ./ops/nginx, ./.env) resolves from the root, not from ops/compose/.
+#
+# Service map — the same map applies to Kubernetes (ops/k8s/README.md):
+#   release      one-shot Job: migrate + collectstatic + first superuser
+#   backend      web Deployment (gunicorn)              probes /healthz/ /readyz/
+#   celery       worker Deployment
+#   celery-beat  scheduler Deployment, replicas: 1 (schedule lives in the DB)
+#   frontend     static SPA Deployment (nginx-unprivileged :8080)   probe /healthz
+#   nginx        the edge (Ingress in k8s): backend prefixes -> backend, rest -> SPA
+#   db, redis    containers here; managed services or operators in k8s
+
+
+# Caps Docker's json-file logs so they can't fill the host disk (the default driver
+# has NO rotation). Referenced by every service below.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+
+x-backend-defaults: &backend-defaults
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+  env_file:
+    - ./.env
+  logging: *default-logging
+  # Lets the backend reach a shared host MinIO via host.docker.internal on Linux when
+  # storage is local (no-op on Docker Desktop). In stage/prod DJANGO_MINIO_ENDPOINT
+  # points at managed MinIO/S3 instead, and this mapping is simply unused.
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+
+
+services:
+  # Runs once per `up`, exits 0, and only then does `backend` start. Re-run by hand with
+  # `make release`. Every step is idempotent (backend/scripts/release.sh).
+  release:
+    <<: *backend-defaults
+    command: bash scripts/release.sh
+    restart: "no"
+
+  backend:
+    <<: *backend-defaults
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      release:
+        condition: service_completed_successfully
+    expose:
+      - 8000
+    healthcheck:
+      # Readiness (db + cache), answered before Host validation — no ALLOWED_HOSTS entry
+      # is needed for it. Liveness alone would be /healthz/.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/readyz/ || exit 1"]
+      interval: 30s
+      retries: 5
+      start_period: 20s
+      timeout: 3s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
+
+  celery:
+    <<: *backend-defaults
+    command: celery -A config worker --loglevel=INFO --concurrency=2 -Q celery
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME || exit 1"]
+      interval: 30s
+      retries: 3
+      start_period: 30s
+      timeout: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
+
+  # Exactly ONE instance, ever (two beats enqueue every periodic task twice). The
+  # schedule is in the database (django-celery-beat), so this container holds no state
+  # and needs no volume. No healthcheck: beat exposes nothing to probe; if the process
+  # dies the container exits and `restart` brings it back.
+  celery-beat:
+    <<: *backend-defaults
+    command: celery -A config beat --loglevel=INFO
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512m
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    logging: *default-logging
+    environment:
+      # Runtime config, served by the image's nginx as /config.js (frontend/nginx/).
+      # Same image for every environment; only these values change.
+      APP_API_BASE_URL: ${APP_API_BASE_URL:-}
+      APP_ENVIRONMENT: ${ENVIRONMENT:-prod}
+    expose:
+      - 8080
+    healthcheck:
+      # 127.0.0.1, not localhost: busybox wget resolves localhost to ::1 first, and nginx
+      # answers there only because the template also listens on [::]:8080.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1"]
+      interval: 30s
+      retries: 3
+      start_period: 5s
+      timeout: 3s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64m
+
+  redis:
+    image: redis:8
+    logging: *default-logging
+    # noeviction protects queued Celery messages from being dropped under memory pressure.
+    command: redis-server --save 60 1 --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
+    expose:
+      - 6379
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      retries: 5
+      timeout: 3s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 320m
+
+  db:
+    image: postgres:17.4
+    logging: *default-logging
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    expose:
+      - 5432
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 3s
+      retries: 5
+      timeout: 3s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
+
+  # NOTE: object storage (MinIO / S3) is NOT part of this compose. Locally it is a
+  # single SHARED MinIO managed on the host by ops/scripts/ensure_minio.sh (make minio);
+  # in stage/prod point DJANGO_MINIO_* at your managed MinIO / S3.
+
+  # The edge of the stack (the Ingress, in Kubernetes terms). Routes the backend-owned
+  # prefixes to gunicorn and everything else to the SPA; see ops/nginx/nginx.conf.
+  nginx:
+    image: nginx:stable-alpine
+    logging: *default-logging
+    ports:
+      - "${APP_PORT:-8050}:80"
+    volumes:
+      - ./ops/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128m
+
+
+volumes:
+  postgres-data:
+  redis-data:
