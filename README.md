@@ -126,8 +126,8 @@ make dev bash / shell        # shell in the backend container / Django shell
 make dev test / lint / format
 make dev makemigrations / migrate / createsuperuser / collectstatic / makemessages / compilemessages
 make dev logs backend        # tail a service
-make fe-dev / fe-lint / fe-typecheck / fe-test / fe-build
-make api-schema              # backend → api/openapi.yaml → frontend/src/api/schema.d.ts
+make fe-dev / fe-lint / fe-typecheck / fe-test / fe-build / fe-format / fe-check
+make api-schema              # backend → api/openapi.yaml → frontend/src/shared/api/schema.d.ts
 make up / down               # local PRODUCTION-LIKE stack: both images built from source, release step, gunicorn
 make prod deploy             # SERVER: pull the pinned images and (re)start — never builds
 make minio / dump / restore / flush-cache
@@ -176,7 +176,7 @@ model, mirrored in Compose by the `release` service.
 The backend is the source of truth; the frontend never guesses shapes.
 
 ```
-DRF view / serializer  ──make api-schema──▶  api/openapi.yaml  ──npm run api:types──▶  frontend/src/api/schema.d.ts
+DRF view / serializer  ──make api-schema──▶  api/openapi.yaml  ──npm run api:types──▶  frontend/src/shared/api/schema.d.ts
                                              (committed)                                 (committed)
 ```
 
@@ -187,7 +187,7 @@ DRF view / serializer  ──make api-schema──▶  api/openapi.yaml  ──n
   `frontend.yml` fails if `schema.d.ts` is stale. A PR that changes the contract shows
   the diff to both teams (`CODEOWNERS`).
 - In the SPA, call the API only through the typed client
-  ([`frontend/src/api/client.ts`](frontend/src/api/client.ts)): a breaking backend change
+  ([`frontend/src/shared/api/client.ts`](frontend/src/shared/api/client.ts)): a breaking backend change
   fails `npm run typecheck`, not production.
 
 ## Two teams, one repository
