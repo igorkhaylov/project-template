@@ -1,0 +1,8 @@
+node_modules
+dist
+coverage
+package-lock.json
+# Generated from api/openapi.yaml; formatting it would make the CI drift check fail.
+src/shared/api/schema.d.ts
+# Prose is edited by hand; Prettier would realign every table on each touch.
+*.md
