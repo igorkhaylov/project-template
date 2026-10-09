@@ -72,8 +72,8 @@ The one URL it leaves alone on purpose: the `django-stdimage` fork in
 | Where | Decide |
 |---|---|
 | `frontend/index.html`, `public/favicon.svg` | title (already renamed) and icon |
-| `frontend/src/App.tsx` | replace the starter screen; keep calls going through `src/api/client.ts` |
-| libraries | router, data cache, CSS framework, i18n — none are preinstalled ([frontend/README.md](../frontend/README.md)) |
+| `frontend/src/pages/home/HomePage.tsx` | replace the starter screen; keep calls going through `src/shared/api/client.ts`; layers and naming in [frontend/docs/architecture.md](../frontend/docs/architecture.md) |
+| libraries | Tailwind is in; router, data cache, forms, state, i18n are added per project — [frontend/docs/architecture.md](../frontend/docs/architecture.md#adding-libraries) |
 | Vite SPA vs Next.js | the default is a static SPA; the Next.js variant is documented in [frontend/README.md](../frontend/README.md#running-a-nextjs-frontend-instead) |
 | `APP_API_BASE_URL` | keep empty (same origin). Set it only if the API is served from a different host — then also set `DJANGO_CORS_ALLOWED_ORIGINS` |
 
@@ -102,5 +102,5 @@ The one URL it leaves alone on purpose: the `django-stdimage` fork in
   project (`make minio`); prod points at managed storage.
 - **`make dev up` does not serve HTTP.** The backend container idles; `make dev run`
   starts the server. The frontend dev server runs on the host (`make fe-dev`).
-- **`api/openapi.yaml` and `frontend/src/api/schema.d.ts` are generated.** Never
+- **`api/openapi.yaml` and `frontend/src/shared/api/schema.d.ts` are generated.** Never
   hand-edit; `make api-schema`.

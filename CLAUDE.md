@@ -25,7 +25,7 @@ make dev up / dev run      backend dev stack / Django dev server (API + admin at
 make fe-dev                Vite dev server on the host (:5173; also proxied at :8050)
 make dev test / dev lint   pytest / ruff inside the dev container
 make fe-test / fe-lint / fe-typecheck
-make api-schema            regenerate api/openapi.yaml + frontend/src/api/schema.d.ts (commit both)
+make api-schema            regenerate api/openapi.yaml + frontend/src/shared/api/schema.d.ts (commit both)
 make up                    local production-like stack (both images built from source)
 ```
 
@@ -36,7 +36,7 @@ make up                    local production-like stack (both images built from s
   `backend/config/urls.py`, `ops/nginx/nginx.conf` + `nginx.dev.conf`, and
   `frontend/vite.config.ts`. A new top-level backend prefix goes into all of them.
 - **The API contract.** Any change to DRF views/serializers → `make api-schema` →
-  commit `api/openapi.yaml` and `frontend/src/api/schema.d.ts` with the change. CI fails
+  commit `api/openapi.yaml` and `frontend/src/shared/api/schema.d.ts` with the change. CI fails
   on either side if they drift.
 - **Health probes.** `/healthz/` (liveness, no dependencies) and `/readyz/` (DB + cache)
   are implemented once in `common.health`. `common.middleware.HealthCheckMiddleware`
@@ -54,8 +54,11 @@ make up                    local production-like stack (both images built from s
 - **Every change to code inherited from django-template is logged in `DEVIATIONS.md`**
   (one row per deviation, with an ID). Add a row when you modify an inherited file;
   additions of new files/routes are listed there too, in their own section.
-- Frontend: typed API calls through `src/api/client.ts` only; runtime config through
-  `src/config.ts`, never `import.meta.env` for environment-specific values.
+- Frontend: layered `src/` (`app → pages → widgets → features → entities → shared`;
+  imports point downwards only, cross-layer imports via `@/`; rules and naming in
+  `frontend/docs/architecture.md`). Typed API calls through `src/shared/api/client.ts`
+  only; runtime config through `src/shared/config/appConfig.ts`, never `import.meta.env`
+  for environment-specific values. Prettier formats; `npm run check` is what CI runs.
 - CI is per component with path filters (`.github/workflows/backend.yml`,
   `frontend.yml`); `deploy.yml` deploys the component that changed.
 - Kubernetes readiness contract: `ops/k8s/README.md`.
