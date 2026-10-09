@@ -6,3 +6,8 @@ coverage
 .env.*
 *.md
 .vite
+.vscode
+.editorconfig
+.prettierrc
+.prettierignore
+docs

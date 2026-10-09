@@ -1,12 +1,12 @@
 import createClient from "openapi-fetch";
 
-import { config } from "../config";
+import { config } from "@/shared/config/appConfig";
 import type { paths } from "./schema";
 
 /**
  * Typed HTTP client over the backend's OpenAPI contract.
  *
- * `paths` is generated from ../../api/openapi.yaml by `npm run api:types` (or
+ * `paths` is generated from api/openapi.yaml (repo root) by `npm run api:types` (or
  * `make api-schema` from the repo root); a backend change that breaks a call fails
  * `npm run typecheck` here instead of failing in production.
  *

@@ -1,0 +1,12 @@
+/* Tailwind v4 entry point: no tailwind.config.js, theme customisation goes in @theme here. */
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
+  body {
+    @apply min-h-dvh bg-gray-50 text-gray-900 antialiased dark:bg-gray-900 dark:text-gray-50;
+  }
+}

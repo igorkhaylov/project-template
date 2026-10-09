@@ -4,7 +4,7 @@ name: Frontend
 # api/openapi.yaml, because a backend contract change must re-check the generated types.
 #
 #   check           npm ci, generated types in sync with api/openapi.yaml, lint,
-#                   typecheck, unit tests, production build
+#                   format check, typecheck, unit tests, production build
 #   build-and-push  ghcr.io/<owner>/<repo>/frontend (same tag scheme as the backend)
 
 on:
@@ -45,18 +45,21 @@ jobs:
       - name: Install
         run: npm ci
 
-      # src/api/schema.d.ts is committed so the Docker build (context = frontend/) and
+      # src/shared/api/schema.d.ts is committed so the Docker build (context = frontend/) and
       # editors work without the backend; it must match api/openapi.yaml.
       - name: Check generated API types are up to date
         run: |
           npm run api:types
-          if ! git diff --exit-code -- src/api/schema.d.ts; then
-            echo "::error file=frontend/src/api/schema.d.ts::Generated types are stale. Run 'make api-schema' (or 'npm run api:types') and commit."
+          if ! git diff --exit-code -- src/shared/api/schema.d.ts; then
+            echo "::error file=frontend/src/shared/api/schema.d.ts::Generated types are stale. Run 'make api-schema' (or 'npm run api:types') and commit."
             exit 1
           fi
 
       - name: Lint
         run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
 
       - name: Typecheck
         run: npm run typecheck

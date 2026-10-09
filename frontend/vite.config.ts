@@ -1,4 +1,6 @@
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
+import { fileURLToPath } from "node:url";
 import { loadEnv } from "vite";
 import { defineConfig } from "vitest/config";
 
@@ -15,7 +17,11 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
   return {
-    plugins: [react()],
+    plugins: [react(), tailwindcss()],
+    resolve: {
+      // `@/` = src/. Must match "paths" in tsconfig.app.json; Vitest inherits it from here.
+      alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+    },
     server: {
       port: Number(env.VITE_PORT) || 5173,
       strictPort: true,

@@ -2,8 +2,10 @@
 
 Реестр всего, чем бэкенд и обвязка этого шаблона отличаются от
 [django-template](https://github.com/igorkhaylov/django-template) (состояние на коммит
-`156ba16`, 2026-09-07). Назначение: выборочно решать, что оставить, а что откатить.
-Чтобы откатить или изменить пункт, достаточно назвать его идентификатор («B7 откатить»).
+`156ba16`, 2026-09-07). Первичный обзор проведён 2026-10-09: все пункты приняты, A8
+уточнён. Дальше файл служит картой расхождений: при переносе улучшений из django-template
+сюда (или обратно) по нему видно, какие файлы и почему разошлись. Чтобы откатить или
+изменить пункт, достаточно назвать его идентификатор («B7 откатить»).
 
 Правило ведения: любое изменение файла, пришедшего из django-template, получает строку
 здесь, с идентификатором. Новые файлы перечислены отдельно (раздел C), они ничего в
@@ -21,11 +23,12 @@
 | A5 | `.github/workflows/` | `build-push.yml` + `deploy.yml` заменены на `backend.yml`, `frontend.yml`, `deploy.yml`: фильтры по путям, образы `ghcr.io/<owner>/<repo>/backend` и `/frontend` (было `ghcr.io/<owner>/<repo>`), проверка актуальности `api/openapi.yaml`, build-arg `APP_VERSION`, деплой одного компонента через `ops/scripts/deploy.sh` | Две команды, независимые пайплайны и деплои | в силе |
 | A6 | `Makefile` | Compose через `ops/compose` + `--project-directory .`; убран `EXEC := --workdir /app/backend` (dev-образ сам в `/app/backend`); добавлены `ps`, `release`, `api-schema`, `fe-*`; `init` дополнительно делает `npm ci` | Новая раскладка, фронтенд, контракт | в силе |
 | A7 | `ops/compose/docker-compose.dev.yml`, `backend/Dockerfile.dev` | Монтируется `./backend:/app/backend` вместо `.:/app`; `WORKDIR /app/backend` | В контейнер бэкенда не попадают `frontend/node_modules` и прочее | в силе |
-| A8 | `ops/scripts/ensure_minio.sh` | Образ клиента `minio/mc:latest` → `pgsty/mc:RELEASE.2026-09-16T00-00-00Z` | `minio/mc` отозван с Docker Hub и quay.io, dl.min.io отдаёт 410; в django-template `make init` на чистой машине из-за этого падает | в силе |
+| A8 | `ops/scripts/ensure_minio.sh` | Сервер и клиент из одного образа `pgsty/silo:RELEASE.2026-09-16T00-00-00Z` (было `pgsty/silo:…08-06` + клиент `minio/mc:latest`): провижининг запускает `mcli` из образа silo, переменная `MINIO_MC_IMAGE` → `MINIO_MCLI_IMAGE` (по умолчанию = образ сервера) | `minio/mc` отозван с Docker Hub и quay.io, dl.min.io отдаёт 410; в django-template `make init` на чистой машине из-за этого падает. Отдельного образа `pgsty/mcli` не существует, бинарник `mcli` лежит в образе silo | в силе |
 | A9 | `ops/scripts/deploy.sh` | Новый серверный скрипт: пин образов в `.env` + `pull` + `up -d` | Деплой одного компонента без касания второго; его же зовёт CI | в силе |
 | A10 | `ops/nginx/nginx.conf`, `nginx.dev.conf` | Второй upstream (frontend) и маршрутизация по регулярке префиксов бэкенда; `proxy_http_version 1.1` + `Connection ""` для keepalive к upstream; dev-конфиг проксирует `/` на Vite на хосте с поддержкой websocket (HMR); из JSON-лога убрано поле `cua` (`$http_custom_user_agent`) | Один origin для SPA и API | в силе |
 | A11 | `.env.example` | Идентификаторы `django-template` → `project-template`; добавлены `FRONTEND_IMAGE`, `APP_API_BASE_URL`; `BACKEND_IMAGE` с суффиксом `/backend`; `DJANGO_ALLOWED_HOSTS=localhost` (было `localhost,backend,`); в CSRF/CORS добавлен `http://localhost:5173`; `GUNICORN_WORKERS=2` (было 4); комментарии про `DATABASE_URL`/`REDIS_URL` | Два образа, Vite dev server, пункты B3/B7/B8/B13 | в силе |
 | A12 | `docs/`, `README.md` | `adapting.md` и `deploy.md` переписаны под новую раскладку; в `backup.md`, `uv.md` обновлены пути; README разделён на корневой и `backend/README.md` | Документация соответствует коду | в силе |
+| A13 | `.vscode/settings.json`, новый `.vscode/extensions.json` | ESLint с рабочей директорией `frontend`; Prettier как форматтер для ts/tsx/js/css; путь к Tailwind-стилям для расширения; слова cSpell; рекомендации расширений (ESLint, Prettier, Tailwind, Ruff, cSpell) | Тулинг фронтенда (Prettier, Tailwind v4, flat ESLint) в монорепо | в силе |
 
 ## B. Бэкенд: изменения в файлах из django-template
 

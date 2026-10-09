@@ -5,7 +5,7 @@
 #   make fe-dev             # run the Vite dev server on the host -> SPA at :5173 (and at APP_PORT via nginx)
 #   make up                 # local production-like stack (builds both images, release step, gunicorn)
 #   make prod deploy        # SERVER: pull the pinned registry images and (re)start (no build)
-#   make api-schema         # regenerate api/openapi.yaml + frontend/src/api/schema.d.ts
+#   make api-schema         # regenerate api/openapi.yaml + frontend/src/shared/api/schema.d.ts
 #   make dev makemigrations # run a manage.py command in the dev stack
 #   make dev logs backend   # tail logs of a service
 #   make minio              # provision bucket on the SHARED local MinIO (host service)
@@ -38,7 +38,7 @@ KNOWN_TARGETS := help init up run down down-v build pull deploy release ps logs 
         migrate makemigrations makemessages compilemessages collectstatic \
         createsuperuser test lint format pre-commit-install minio flush-cache \
         flush-redis dump restore bash bash-db bash-nginx api-schema \
-        fe-install fe-dev fe-lint fe-typecheck fe-test fe-build fe-types
+        fe-install fe-dev fe-lint fe-typecheck fe-test fe-build fe-types fe-format fe-check
 
 .PHONY: dev prod $(KNOWN_TARGETS)
 
@@ -64,9 +64,9 @@ help:
 	@echo "  test lint format pre-commit-install"
 	@echo "  minio flush-cache flush-redis dump restore"
 	@echo "Frontend (runs on the host, no prefix):"
-	@echo "  fe-install fe-dev fe-lint fe-typecheck fe-test fe-build fe-types"
+	@echo "  fe-install fe-dev fe-lint fe-typecheck fe-test fe-build fe-types fe-format fe-check"
 	@echo "API contract:"
-	@echo "  api-schema                       # backend -> api/openapi.yaml -> frontend/src/api/schema.d.ts"
+	@echo "  api-schema                       # backend -> api/openapi.yaml -> frontend/src/shared/api/schema.d.ts"
 
 dev:
 	@:
@@ -204,6 +204,13 @@ fe-build:
 
 fe-types:
 	cd frontend && npm run api:types
+
+fe-format:
+	cd frontend && npm run format
+
+# Everything CI runs: typecheck, lint, format:check, tests, production build.
+fe-check:
+	cd frontend && npm run check
 
 # --- MinIO (provision object storage against the SHARED local MinIO) ---
 # Starts the single shared host MinIO if needed, then creates this project's bucket +

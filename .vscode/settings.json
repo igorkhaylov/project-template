@@ -4,33 +4,61 @@
         "asgi",
         "batisteo",
         "celerybeat",
+        "clsx",
         "collectstatic",
         "compilemessages",
         "corsheaders",
         "createsuperuserauto",
+        "dvh",
+        "envsubst",
         "FLUSHALL",
         "geminicodeassist",
         "Gruntfuggly",
         "gunicorn",
-        "envsubst",
         "healthcheck",
         "healthz",
-        "readyz",
-        "spectacular",
-        "unprivileged",
-        "vitest",
         "isort",
         "isready",
         "keepalive",
         "makemessages",
+        "nvmrc",
+        "prettierrc",
         "psql",
         "pycache",
         "pytest",
+        "readyz",
         "referer",
         "runserver",
         "sendfile",
+        "spectacular",
         "startapp",
         "startproject",
+        "tailwindcss",
+        "unprivileged",
+        "vitest",
         "wsgi"
-    ]
+    ],
+    "eslint.workingDirectories": [
+        {
+            "directory": "frontend",
+            "changeProcessCWD": true
+        }
+    ],
+    "tailwindCSS.experimental.configFile": "frontend/src/app/styles.css",
+    "[typescript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true
+    },
+    "[typescriptreact]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true
+    },
+    "[javascript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true
+    },
+    "[css]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true
+    }
 }
