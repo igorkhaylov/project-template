@@ -18,6 +18,25 @@ In the admin, the preview uses a default variation:
 return format_html('<img src="{}" height="200" />', obj.picture.small.url)
 ```
 
+## Project-wide default variations
+
+Since fork `v1.2.0`, the default set used by every field declared without `variations`
+can be changed in one place instead of per field:
+
+```python
+# backend/config/settings/third_party.py
+STDIMAGE_DEFAULT_VARIATIONS = {
+    "thumbnail": {"width": 150, "height": 150, "crop": True},
+    "card": {"width": 600, "height": None},
+}
+```
+
+Resolution order: explicit `variations=` on the field, then this setting (when defined;
+`{}` means no default variations), then the fork's built-in defaults. The resolved set is
+written into migrations like explicit variations, so changing the setting is an
+`AlterField` (`make dev makemigrations && make dev migrate`) plus `rendervariations` for
+existing files. The template does not define the setting: the built-in defaults apply.
+
 ## Declaring custom variations
 
 To control sizes explicitly, pass `variations`. Each entry becomes an attribute on the
@@ -64,7 +83,7 @@ needed.
 
 The fork is maintained by the project owner. To bump it:
 
-1. Tag a release in the fork repo (e.g. `v1.0.3`).
+1. Tag a release in the fork repo (e.g. `v1.2.0`).
 2. Update the ref in `backend/pyproject.toml`:
-   `django-stdimage @ git+https://github.com/igorkhaylov/django-stdimage.git@v1.0.3`
+   `django-stdimage @ git+https://github.com/igorkhaylov/django-stdimage.git@v1.2.0`
 3. `cd backend && uv lock --upgrade-package django-stdimage`

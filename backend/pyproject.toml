@@ -28,7 +28,7 @@ dependencies = [
     "django-cleanup>=9.0.0,<10.0.0",
     "django-structlog>=10.1.0,<11.0.0",
     "structlog>=26.1.0",
-    "django-stdimage @ git+https://github.com/igorkhaylov/django-stdimage.git@v1.1.0",
+    "django-stdimage @ git+https://github.com/igorkhaylov/django-stdimage.git@v1.2.0",
     "dj-database-url>=3.0,<4.0",
     "django-celery-beat>=2.8,<3.0",
 ]
