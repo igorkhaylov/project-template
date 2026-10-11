@@ -29,10 +29,12 @@ fi
 CONTAINER_NAME="${MINIO_CONTAINER_NAME:-minio}"
 # SILO is the renamed continuation of the pgsty/minio fork — same S3 API, same MINIO_*
 # env vars, same `server /data` arguments, so it is a drop-in swap for the old image.
-# The client comes from the same fork: the upstream minio/mc images were withdrawn from
-# Docker Hub and quay.io (pull access denied), and dl.min.io no longer serves binaries.
-IMAGE="${MINIO_IMAGE:-pgsty/silo:RELEASE.2026-08-06T00-00-00Z}"
-MC_IMAGE="${MINIO_MC_IMAGE:-pgsty/mc:RELEASE.2026-09-16T00-00-00Z}"
+# The same image ships the client, `mcli` (Silo's fork of the MinIO client), so ONE pin
+# covers both the server and the provisioning step below. The upstream minio/minio and
+# minio/mc images were withdrawn from Docker Hub and quay.io; dl.min.io serves nothing.
+IMAGE="${MINIO_IMAGE:-pgsty/silo:RELEASE.2026-09-16T00-00-00Z}"
+# Image the one-off provisioning container runs `mcli` from (defaults to the server image).
+MCLI_IMAGE="${MINIO_MCLI_IMAGE:-$IMAGE}"
 VOLUME_NAME="${MINIO_VOLUME_NAME:-minio-data}"
 
 MINIO_ROOT_USER="${MINIO_ROOT_USER:-minioadmin}"
@@ -90,12 +92,12 @@ else
 fi
 
 # --- 2. Create this project's bucket + app user + policy ---------------------
-# Run mc in a one-off container. It reaches the host-published MinIO via
+# Run mcli in a one-off container. It reaches the host-published MinIO via
 # host.docker.internal (works on Docker Desktop; the --add-host maps it on Linux).
 #
 # Policy JSON is rendered HERE on the host (the `bucket_name` placeholder is replaced
 # with the real bucket name using pure bash, no external tools) and passed to the
-# container as env vars — the official minio/mc image ships no sed/awk to substitute it.
+# container as env vars, so the step needs nothing from the image but `mcli` and `sh`.
 echo "Provisioning bucket '$BUCKET' and app user '$APP_USER' on the shared MinIO..."
 
 render_policy() { # print the policy file with `bucket_name` replaced; nothing if absent
@@ -121,11 +123,11 @@ docker run --rm \
     -e "CONTAINER_NAME=${CONTAINER_NAME}" \
     -e "WAIT_TIMEOUT=${MINIO_WAIT_TIMEOUT}" \
     --entrypoint sh \
-    "$MC_IMAGE" -c '
+    "$MCLI_IMAGE" -c '
 set -e
 echo "  Waiting for MinIO at $MINIO_HOST (timeout: ${WAIT_TIMEOUT}s) ..."
 waited=0
-until mc alias set local "$MINIO_HOST" "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null 2>&1; do
+until mcli alias set local "$MINIO_HOST" "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null 2>&1; do
     waited=$((waited + 1))
     if [ "$waited" -ge "$WAIT_TIMEOUT" ]; then
         echo "" >&2
@@ -140,23 +142,23 @@ until mc alias set local "$MINIO_HOST" "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
 done
 
 echo "  Ensuring bucket $BUCKET ..."
-mc mb --ignore-existing "local/$BUCKET"
+mcli mb --ignore-existing "local/$BUCKET"
 
 if [ -n "$PUBLIC_POLICY" ]; then
     echo "  Applying public-read policy ..."
     printf "%s" "$PUBLIC_POLICY" > /tmp/public.json
-    mc anonymous set-json /tmp/public.json "local/$BUCKET"
+    mcli anonymous set-json /tmp/public.json "local/$BUCKET"
 fi
 
 echo "  Ensuring app user $APP_USER ..."
-mc admin user add local "$APP_USER" "$APP_PASSWORD" 2>/dev/null || true
+mcli admin user add local "$APP_USER" "$APP_PASSWORD" 2>/dev/null || true
 
 if [ -n "$USER_POLICY" ]; then
     echo "  Applying user policy $POLICY_NAME ..."
     printf "%s" "$USER_POLICY" > /tmp/user.json
-    mc admin policy create local "$POLICY_NAME" /tmp/user.json 2>/dev/null || \
-        mc admin policy update local "$POLICY_NAME" /tmp/user.json
-    mc admin policy attach local "$POLICY_NAME" --user "$APP_USER" 2>/dev/null || true
+    mcli admin policy create local "$POLICY_NAME" /tmp/user.json 2>/dev/null || \
+        mcli admin policy update local "$POLICY_NAME" /tmp/user.json
+    mcli admin policy attach local "$POLICY_NAME" --user "$APP_USER" 2>/dev/null || true
 fi
 '
 
