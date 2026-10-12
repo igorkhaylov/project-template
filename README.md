@@ -86,7 +86,7 @@ environment, and either directory can later be moved into its own repository wit
 | **make**, **openssl** | all commands; `make init` generates secrets | preinstalled on macOS/Linux |
 | **Node 24+** / **npm** | frontend dev server, lint, tests | the frontend runs on the host, not in a container (fast HMR) |
 | **uv** (optional) | host virtualenv for the editor, backend tests without Docker | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
-| **ruff** + **pre-commit** (optional) | git hooks | `uv tool install ruff pre-commit` |
+| **ruff** + **pre-commit** (optional) | git hooks: ruff for `backend/`, prettier + eslint for `frontend/` (from `frontend/node_modules`) | `uv tool install ruff pre-commit`, then `pre-commit install` |
 
 Free host ports: `8050` (the stack, `APP_PORT`), `5173` (Vite), `9000`/`9001` (shared MinIO).
 
@@ -195,6 +195,10 @@ DRF view / serializer  ──make api-schema──▶  api/openapi.yaml  ──n
 - **Ownership by directory.** `CODEOWNERS` assigns `backend/` and `frontend/` to their
   teams; `api/`, `ops/` and `.github/` need a reviewer from each. Replace the
   `@OWNER/...` placeholders with real teams.
+- **Dependencies stay current by themselves.** `.github/dependabot.yml` opens weekly PRs per
+  ecosystem (uv, npm, Docker images, compose images, Actions), minor+patch grouped; security
+  advisories open PRs immediately. Django majors, Postgres majors and TypeScript majors are
+  excluded on purpose: those are decisions, not updates.
 - **Independent pipelines.** `backend.yml` runs on changes under `backend/**`,
   `frontend.yml` under `frontend/**` (both also on `api/openapi.yaml`). Each builds and
   pushes its own image: `ghcr.io/<owner>/<repo>/backend` and `/frontend`.

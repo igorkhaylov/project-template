@@ -29,6 +29,7 @@
 | A11 | `.env.example` | Идентификаторы `django-template` → `project-template`; добавлены `FRONTEND_IMAGE`, `APP_API_BASE_URL`; `BACKEND_IMAGE` с суффиксом `/backend`; `DJANGO_ALLOWED_HOSTS=localhost` (было `localhost,backend,`); в CSRF/CORS добавлен `http://localhost:5173`; `GUNICORN_WORKERS=2` (было 4); комментарии про `DATABASE_URL`/`REDIS_URL` | Два образа, Vite dev server, пункты B3/B7/B8/B13 | в силе |
 | A12 | `docs/`, `README.md` | `adapting.md` и `deploy.md` переписаны под новую раскладку; в `backup.md`, `uv.md` обновлены пути; README разделён на корневой и `backend/README.md` | Документация соответствует коду | в силе |
 | A13 | `.vscode/settings.json`, новый `.vscode/extensions.json` | ESLint с рабочей директорией `frontend`; Prettier как форматтер для ts/tsx/js/css; путь к Tailwind-стилям для расширения; слова cSpell; рекомендации расширений (ESLint, Prettier, Tailwind, Ruff, cSpell) | Тулинг фронтенда (Prettier, Tailwind v4, flat ESLint) в монорепо | в силе |
+| A14 | `ops/compose/*.yml`, `.github/workflows/*.yml`, `.github/dependabot.yml`, `.pre-commit-config.yaml` | Пины подняты до актуальных: `postgres:17.4` → `17.11`, `docker-db-backup:4.1.100` → `4.9.2`, GitHub Actions на текущие мажоры (checkout/setup-node v7, buildx/login v4, metadata v6, build-push v7); добавлен Dependabot (uv, npm, docker, docker-compose, github-actions) и pre-commit-хуки prettier/eslint для `frontend/` | Исправления безопасности в минорных релизах Postgres; старые мажоры Actions работают на Node 20, который GitHub выводит; обновления дальше приходят PR-ами | в силе |
 
 ## B. Бэкенд: изменения в файлах из django-template
 
@@ -47,7 +48,7 @@
 | B11 | `config/celery.py` | Broker/result из `settings.REDIS_URL` (B8); `beat_scheduler = DatabaseScheduler`; удалён `beat_schedule_filename = "/tmp/celerybeat-schedule"` | Beat без локального файла: ничего не хранить в поде/томе | в силе |
 | B12 | `config/urls.py` | Удалён маршрут `/healthcheck/` (lambda) и модульный docstring; добавлены `/healthz/`, `/readyz/`, `/api/v1/` (`config/api_v1.py`), `/api/schema/`, `/api/docs/` | Пробы liveness/readiness с описанием в схеме; маршрутизация API с версией; Swagger | в силе |
 | B13 | `scripts/entrypoint.sh` | Оставлен только запуск gunicorn (дефолт `GUNICORN_WORKERS` 4 → 2); `compilemessages`, `migrate`, `wait_for_storage`, `collectstatic`, `createsuperuserauto` вынесены в новый `scripts/release.sh` (compilemessages — в Dockerfile, B14) | Миграции не в web-процессе: N реплик стартуют без гонки; в compose это сервис `release` (D1) | в силе |
-| B14 | `Dockerfile` | Контекст `backend/` (A1); `.po` → `.mo` компилируются при сборке (`msgfmt`); `ARG/ENV APP_VERSION`; добавлен `CMD ["bash", "scripts/entrypoint.sh"]` (в оригинале команду задавал только compose) | Образ не пишет в себя на старте; версия сборки; `docker run` и bare-Deployment работают без команды | в силе |
+| B14 | `Dockerfile`, `Dockerfile.dev` | Контекст `backend/` (A1); `.po` → `.mo` компилируются при сборке (`msgfmt`); `ARG/ENV APP_VERSION`; добавлен `CMD ["bash", "scripts/entrypoint.sh"]` (в оригинале команду задавал только compose); `pip install uv` → `COPY --from=ghcr.io/astral-sh/uv:0.13.0` в обоих Dockerfile (uv запинен) | Образ не пишет в себя на старте; версия сборки; `docker run` и bare-Deployment работают без команды | в силе |
 | B15 | `Dockerfile.dev` | `WORKDIR /app/backend` (было `/app`) | A7 | в силе |
 | B16 | `pyproject.toml`, `uv.lock` | `name = "app"` → `"project-template-backend"`; добавлены `dj-database-url` (B7) и `django-celery-beat` (B6, B11); lock перегенерирован | — | в силе |
 | B17 | `tests/test_common.py` | `test_healthcheck` (`/healthcheck/`) удалён (B12); добавлены тесты `/healthz/` с чужим Host, `/readyz/`, совпадения вьюх и middleware, наличия путей в схеме, `/api/v1/meta/` | Покрытие новых контрактов | в силе |
@@ -65,6 +66,7 @@
 | C5 | `apps/common/urls.py`, `config/api_v1.py` | Маршруты приложения и таблица `/api/v1/` (по одному `include` на приложение) |
 | C6 | `scripts/release.sh` | Шаг релиза: migrate → wait_for_storage → collectstatic → createsuperuserauto |
 | C7 | `backend/README.md` | Документация бэкенда (часть прежнего корневого README) |
+| C8 | `backend/.python-version` | `3.13`: хостовый venv (`uv sync`) на том же интерпретаторе, что и Docker-образ; без файла uv брал системный Python 3.14 |
 
 ## D. Compose: сервисы бэкенда
 
