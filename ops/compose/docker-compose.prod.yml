@@ -145,7 +145,7 @@ services:
           memory: 320m
 
   db:
-    image: postgres:17.4
+    image: postgres:17.11
     logging: *default-logging
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -174,7 +174,7 @@ services:
   # in S3/MinIO — back that up with bucket versioning/replication and/or `make dump media`
   # (docs/backup.md). Target + schedule + retention are all set in .env.
   db-backup:
-    image: ${DB_BACKUP_IMAGE:-ghcr.io/tiredofit/docker-db-backup:4.1.100}
+    image: ${DB_BACKUP_IMAGE:-ghcr.io/tiredofit/docker-db-backup:4.9.2}
     profiles: ["backup"]
     logging: *default-logging
     depends_on:
