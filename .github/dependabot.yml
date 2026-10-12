@@ -1,0 +1,64 @@
+# Dependabot: weekly update PRs per ecosystem, minor+patch grouped into one PR each so the
+# noise stays low; majors arrive as separate PRs. CI runs on every PR (backend.yml /
+# frontend.yml), so a green PR is safe to merge. Security advisories additionally open
+# PRs as soon as they are published (Dependabot alerts are enabled on the repository).
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      backend-minor-and-patch:
+        update-types: [minor, patch]
+    # Django stays on the 5.2 LTS line until 6.2 LTS (pyproject caps it too).
+    ignore:
+      - dependency-name: django
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      frontend-minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # TypeScript 6+/7 is not supported by typescript-eslint yet.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: docker
+    directories: ["/backend", "/frontend"]
+    schedule:
+      interval: weekly
+      day: monday
+    ignore:
+      # Interpreter/runtime lines are deliberate decisions, not routine updates.
+      - dependency-name: python
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: docker-compose
+    directory: /ops/compose
+    schedule:
+      interval: weekly
+      day: monday
+    ignore:
+      # A Postgres major is a data migration; minors (security fixes) are welcome.
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
+      - dependency-name: redis
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]
