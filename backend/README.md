@@ -160,6 +160,7 @@ on the host, in the dev container (whose `.env` exports `ENVIRONMENT=dev`) and i
 Ruff (`E, F, I, UP, B, C4, SIM, DJ, RUF`, line length 120, migrations excluded) via
 `pyproject.toml`; pre-commit hooks at the repo root run `ruff check` and `ruff format`
 using the `ruff` on your `PATH` (`uv tool install ruff pre-commit`, then `pre-commit install`).
+`.python-version` pins the host virtualenv to the same interpreter as the Docker image.
 
 ## Dependencies (uv)
 
