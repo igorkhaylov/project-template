@@ -21,7 +21,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential python3-dev libpq-dev gcc git gettext \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir uv
+# uv pinned to a release (not "whatever pip resolves today") for reproducible image builds.
+COPY --from=ghcr.io/astral-sh/uv:0.13.0 /uv /usr/local/bin/uv
 
 # Set to "true" to include the dev dependency group (used by the test image).
 ARG INSTALL_DEV=false
