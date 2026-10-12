@@ -1,6 +1,7 @@
 repos:
   - repo: local
     hooks:
+      # Backend: ruff from your PATH (uv tool install ruff pre-commit).
       - id: ruff-check
         name: ruff check
         entry: ruff check --config backend/pyproject.toml --force-exclude
@@ -11,3 +12,19 @@ repos:
         entry: ruff format --config backend/pyproject.toml --force-exclude
         language: system
         types: [python]
+      # Frontend: prettier and eslint from frontend/node_modules (npm ci / make init).
+      # pre-commit passes paths relative to the repo root; the hooks run inside frontend/
+      # so the project's .prettierrc, .prettierignore and eslint.config.js apply.
+      - id: prettier-check
+        name: prettier check (frontend)
+        entry: bash -c 'cd frontend && exec node_modules/.bin/prettier --check "${@#frontend/}"' --
+        language: system
+        files: ^frontend/
+        exclude: ^frontend/(package-lock\.json|src/shared/api/schema\.d\.ts)$
+        types_or: [javascript, jsx, ts, tsx, css, json, markdown, yaml]
+      - id: eslint
+        name: eslint (frontend)
+        entry: bash -c 'cd frontend && exec node_modules/.bin/eslint "${@#frontend/}"' --
+        language: system
+        files: ^frontend/.*\.(js|jsx|ts|tsx)$
+        exclude: ^frontend/src/shared/api/schema\.d\.ts$
