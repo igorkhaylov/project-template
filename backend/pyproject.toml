@@ -22,7 +22,7 @@ dependencies = [
     "python-dateutil>=2.9.0.post0,<3.0.0",
     # redis-py 7+/8+ exists, but kombu's redis transport requires redis<6.5; the [redis]
     # extra on celery below makes the resolver enforce that, so this range stays wide.
-    "redis>=6.4.0,<7.0.0",
+    "redis>=6.4.0,<9.0.0",
     "celery[redis]>=5.6.3,<6.0.0",
     "django-storages[s3]>=1.14.6,<2.0.0",
     "django-cleanup>=9.0.0,<10.0.0",
