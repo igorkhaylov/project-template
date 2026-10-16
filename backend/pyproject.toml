@@ -56,6 +56,7 @@ dev = [
     "ruff>=0.16.2",
     "pre-commit>=4.6.1",
     "pyright>=1.1.411",
+    "django-types>=0.22",
 ]
 
 # This project is an application, not a distributable package: uv only manages the

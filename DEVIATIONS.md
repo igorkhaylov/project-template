@@ -67,6 +67,7 @@
 | C5 | `apps/common/urls.py`, `config/api_v1.py` | Маршруты приложения и таблица `/api/v1/` (по одному `include` на приложение) |
 | C6 | `scripts/release.sh` | Шаг релиза: migrate → wait_for_storage → collectstatic → createsuperuserauto |
 | C7 | `backend/README.md` | Документация бэкенда (часть прежнего корневого README) |
+| B20 | `pyrightconfig.json`, `pyproject.toml` | `extraPaths: ["apps"]`, исключены миграции, `reportMissingImports` понижен до warning (опциональный `firebase_admin`); в dev-группу добавлен `django-types` | На чистом дереве pyright давал 75 ошибок, из них 54 вне тестов: не резолвился `users.models`, Django без стабов | в силе |
 | C8 | `backend/.python-version` | `3.13`: хостовый venv (`uv sync`) на том же интерпретаторе, что и Docker-образ; без файла uv брал системный Python 3.14 |
 
 ## D. Compose: сервисы бэкенда
