@@ -124,14 +124,18 @@ if [ -z "$files" ] && [ -z "$port_files" ]; then
 fi
 
 if [ -n "$files" ]; then
-    # Brace delimiters: the owner/repo pattern contains a slash. \Q..\E quotes regex metachars.
+    # Values are handed to perl through the environment and read with $ENV{...}: a title
+    # or owner containing `$`, `@`, `{` or `\` is inserted literally, never interpolated.
+    # \Q..\E quotes the (constant) template identifiers on the pattern side.
     # shellcheck disable=SC2086
-    perl -pi -e "s{\Q$T_OWNER_REPO\E}{$owner/$slug}g; s{\Q$T_SLUG\E}{$slug}g; s{\Q$T_SNAKE\E}{$snake}g; s{\Q$T_PASCAL\E}{$pascal}g; s{\Q$T_TITLE\E}{$title}g" $files
+    NP_OWNER_SLUG="$owner/$slug" NP_SLUG="$slug" NP_SNAKE="$snake" NP_PASCAL="$pascal" NP_TITLE="$title" \
+    T_OWNER_REPO="$T_OWNER_REPO" T_SLUG="$T_SLUG" T_SNAKE="$T_SNAKE" T_PASCAL="$T_PASCAL" T_TITLE="$T_TITLE" \
+    perl -pi -e 's{\Q$ENV{T_OWNER_REPO}\E}{$ENV{NP_OWNER_SLUG}}g; s{\Q$ENV{T_SLUG}\E}{$ENV{NP_SLUG}}g; s{\Q$ENV{T_SNAKE}\E}{$ENV{NP_SNAKE}}g; s{\Q$ENV{T_PASCAL}\E}{$ENV{NP_PASCAL}}g; s{\Q$ENV{T_TITLE}\E}{$ENV{NP_TITLE}}g' $files
 fi
 if [ -n "$port_files" ]; then
     # Only a standalone 8050 (not part of a longer number, a word or a hash) becomes the port.
     # shellcheck disable=SC2086
-    perl -pi -e "s{(?<![0-9A-Za-z])${T_PORT}(?![0-9A-Za-z])}{$port}g" $port_files
+    T_PORT="$T_PORT" NP_PORT="$port" perl -pi -e 's{(?<![0-9A-Za-z])$ENV{T_PORT}(?![0-9A-Za-z])}{$ENV{NP_PORT}}g' $port_files
 fi
 
 echo "Rewrote:"
