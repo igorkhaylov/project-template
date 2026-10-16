@@ -40,6 +40,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # A lockfile is trusted verbatim by `uv sync --frozen`, so a pre-release that slipped
+      # in (e.g. via a dependency-update bot widening a cap) would reach production unnoticed.
+      - name: Refuse pre-release packages in uv.lock
+        run: |
+          if grep -nE '^version = "[0-9][0-9.]*(a|b|rc|alpha|beta|dev)[0-9]*"' backend/uv.lock; then
+            echo "::error file=backend/uv.lock::Pre-release package version(s) in the lockfile (see above)."
+            exit 1
+          fi
+
       - name: Run test suite
         run: ${{ env.TEST_COMPOSE }} up --build --abort-on-container-exit --exit-code-from backend
 

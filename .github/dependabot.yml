@@ -9,12 +9,19 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    # Update uv.lock only, never the version constraints in pyproject.toml: the caps there
+    # are deliberate (Django LTS line, redis bounded by kombu). Without this Dependabot
+    # widened the redis cap and pulled a kombu pre-release to satisfy it.
+    versioning-strategy: lockfile-only
     groups:
       backend-minor-and-patch:
         update-types: [minor, patch]
-    # Django stays on the 5.2 LTS line until 6.2 LTS (pyproject caps it too).
     ignore:
+      # Django stays on the 5.2 LTS line until 6.2 LTS.
       - dependency-name: django
+        update-types: ["version-update:semver-major"]
+      # kombu's redis transport pins redis<6.5; a redis major is useless until kombu moves.
+      - dependency-name: redis
         update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
