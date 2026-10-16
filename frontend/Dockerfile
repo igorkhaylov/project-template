@@ -31,6 +31,8 @@ ENV NGINX_ENVSUBST_FILTER=^APP_ \
 
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
+# Validates the APP_* values before the template is rendered (entrypoint.d runs in order).
+COPY --chmod=755 nginx/05-validate-app-config.sh /docker-entrypoint.d/05-validate-app-config.sh
 
 EXPOSE 8080
 
