@@ -122,6 +122,7 @@ migrates, uploads static files to the bucket, and runs `npm ci` in `frontend/`.
 make help                    # the full list
 make dev up / down / down-v  # start / stop / stop and DROP volumes (database!)
 make dev run                 # Django dev server (foreground)
+make dev worker / dev beat   # Celery worker / beat (foreground; the dev stack starts none by itself)
 make dev bash / shell        # shell in the backend container / Django shell
 make dev test / lint / format
 make dev makemigrations / migrate / createsuperuser / collectstatic / makemessages / compilemessages
