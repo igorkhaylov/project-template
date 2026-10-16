@@ -34,7 +34,7 @@ TEST_COMPOSE := $(COMPOSE_BASE) -f ops/compose/docker-compose.test.yml
 ARGS = $(filter-out dev prod $@,$(MAKECMDGOALS))
 
 # Every real target — used for .PHONY and for the typo guard below.
-KNOWN_TARGETS := help init up run down down-v build pull deploy release ps logs shell dbshell \
+KNOWN_TARGETS := help init up run worker beat down down-v build pull deploy release ps logs shell dbshell \
         migrate makemigrations makemessages compilemessages collectstatic \
         createsuperuser test lint format pre-commit-install minio flush-cache \
         flush-redis dump restore bash bash-db bash-nginx api-schema \
@@ -57,6 +57,7 @@ help:
 	@echo "First run:   make init    # .env + secrets, MinIO bucket, dev stack, migrate, collectstatic, npm ci"
 	@echo "Backend (prefix 'dev' = development stack, 'prod' = pull-based deploy, none = local prod-like):"
 	@echo "  dev up      then  dev run        # start stack, then serve (autoreload) at APP_PORT"
+	@echo "  dev worker / dev beat            # Celery in the dev stack (foreground; not started by default)"
 	@echo "  up / down / down-v / build / ps / logs [service] / release"
 	@echo "  prod pull / prod deploy          # server: pull the pinned images and (re)start"
 	@echo "  shell dbshell bash bash-db bash-nginx"
@@ -104,6 +105,15 @@ up:
 # Run `make dev up` first. Ctrl-C stops the server; the stack keeps running.
 run:
 	$(COMPOSE) exec backend python manage.py runserver 0.0.0.0:8000
+
+# Dev only: Celery worker / beat in the foreground inside the idle backend container.
+# The dev stack runs no worker by itself, so `.delay()` calls would otherwise sit in
+# Redis forever. Open a second terminal for each; Ctrl-C stops it, the stack stays up.
+worker:
+	$(COMPOSE) exec backend celery -A config worker --loglevel=INFO --concurrency=2 -Q celery
+
+beat:
+	$(COMPOSE) exec backend celery -A config beat --loglevel=INFO
 
 down:
 	$(COMPOSE) down
