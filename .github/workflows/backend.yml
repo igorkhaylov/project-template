@@ -59,7 +59,7 @@ jobs:
         run: |
           ${{ env.TEST_COMPOSE }} run --rm --no-deps -T backend python manage.py spectacular --validate > /tmp/openapi.yaml
           if ! diff -u api/openapi.yaml /tmp/openapi.yaml; then
-            echo "::error file=api/openapi.yaml::Schema is stale. Run 'make api-schema' and commit api/openapi.yaml + frontend/src/api/schema.d.ts."
+            echo "::error file=api/openapi.yaml::Schema is stale. Run 'make api-schema' and commit api/openapi.yaml + frontend/src/shared/api/schema.d.ts."
             exit 1
           fi
 
