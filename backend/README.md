@@ -55,7 +55,7 @@ next endpoint you add is world-open until you set `IsAuthenticated` and an auth 
 
 1. Serializer in `apps/<app>/serializers.py`, view in `views.py`, route in `apps/<app>/urls.py`,
    `include()` it from `config/api_v1.py` (versioned: `/api/v1/<app>/…`).
-2. `make api-schema` → commit `api/openapi.yaml` **and** `frontend/src/api/schema.d.ts`.
+2. `make api-schema` → commit `api/openapi.yaml` **and** `frontend/src/shared/api/schema.d.ts`.
    CI on both sides fails if either is stale.
 3. A new *top-level* prefix (anything other than `/api/…`) must also be added to the
    edge (`ops/nginx/*.conf`) and the dev proxy (`frontend/vite.config.ts`).
