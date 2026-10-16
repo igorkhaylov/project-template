@@ -161,6 +161,8 @@ Ruff (`E, F, I, UP, B, C4, SIM, DJ, RUF`, line length 120, migrations excluded) 
 `pyproject.toml`; pre-commit hooks at the repo root run `ruff check` and `ruff format`
 using the `ruff` on your `PATH` (`uv tool install ruff pre-commit`, then `pre-commit install`).
 `.python-version` pins the host virtualenv to the same interpreter as the Docker image.
+`uv run pyright` type-checks with `django-types`; Django's dynamic attributes (managers,
+`self.style.*`, storage backends) surface as warnings, real mistakes as errors.
 
 ## Dependencies (uv)
 

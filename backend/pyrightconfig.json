@@ -1,11 +1,29 @@
 {
+  "_comment": "Django is dynamic: attribute/argument/call checks are warnings (editor hints), everything else is an error. django-types (dev group) provides the stubs; extraPaths makes `apps/` importable.",
   "pythonVersion": "3.13",
   "pythonPlatform": "Linux",
-  "venvPath": "",
+  "venvPath": ".",
+  "venv": ".venv",
+  "extraPaths": [
+    "apps"
+  ],
+  "exclude": [
+    "**/migrations",
+    "**/node_modules",
+    "**/__pycache__",
+    ".venv"
+  ],
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "warning",
   "executionEnvironments": [
     {
       "root": ".",
       "pythonVersion": "3.13"
     }
-  ]
+  ],
+  "reportAttributeAccessIssue": "warning",
+  "reportArgumentType": "warning",
+  "reportCallIssue": "warning",
+  "reportOptionalMemberAccess": "warning",
+  "reportOperatorIssue": "warning"
 }
