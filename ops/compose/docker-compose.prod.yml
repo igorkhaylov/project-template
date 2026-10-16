@@ -219,7 +219,10 @@ services:
     image: nginx:stable-alpine
     logging: *default-logging
     ports:
-      - "${APP_PORT:-8050}:80"
+      # Loopback by default: the stack is reached through the external TLS proxy (or the
+      # browser on this machine), never directly from the network. APP_BIND=0.0.0.0 to
+      # expose it deliberately (e.g. testing from a phone on the LAN).
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-8050}:80"
     volumes:
       - ./ops/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:

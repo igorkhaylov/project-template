@@ -85,7 +85,10 @@ services:
     volumes:
       - ./ops/nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
     ports:
-      - "${APP_PORT:-8050}:80"
+      # Loopback by default: the stack is reached through the external TLS proxy (or the
+      # browser on this machine), never directly from the network. APP_BIND=0.0.0.0 to
+      # expose it deliberately (e.g. testing from a phone on the LAN).
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-8050}:80"
     # `/` is proxied to the Vite dev server on the host (frontend/, `make fe-dev`).
     extra_hosts:
       - "host.docker.internal:host-gateway"
