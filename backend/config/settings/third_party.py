@@ -11,6 +11,15 @@ from .base import APP_NAME, DEBUG
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # Closed by default: a view that declares nothing requires an authenticated user, so
+    # a forgotten `permission_classes` fails safe (401/403) instead of exposing data.
+    # A public endpoint opts out explicitly with `permission_classes = (AllowAny,)` AND
+    # is added to PUBLIC_API_ROUTES in tests/test_api_access.py — the suite fails
+    # otherwise, which makes opening an endpoint a deliberate, reviewed change.
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    # No scheme is chosen for you (session vs JWT is a project decision, see
+    # docs/adapting.md). Until one is enabled nobody can authenticate, so every
+    # non-public endpoint answers 403.
     "DEFAULT_AUTHENTICATION_CLASSES": (
         # "rest_framework.authentication.SessionAuthentication",
         # "rest_framework_simplejwt.authentication.JWTAuthentication",

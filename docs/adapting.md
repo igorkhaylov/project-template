@@ -49,7 +49,7 @@ The one URL it leaves alone on purpose: the `django-stdimage` fork in
 |---|---|---|
 | `TIME_ZONE` | `backend/config/settings/base.py` | `Asia/Tashkent` |
 | `LANGUAGE_CODE`, `LANGUAGES`, `MODELTRANSLATION_*` | `base.py` | `en` default + `ru`; keep `modeltranslation` first in `INSTALLED_APPS`. Changing the language set also changes the `(en\|ru)` prefix in `ops/nginx/*.conf` and `frontend/vite.config.ts` |
-| `REST_FRAMEWORK` | `third_party.py` | **no** `DEFAULT_PERMISSION_CLASSES`, empty `DEFAULT_AUTHENTICATION_CLASSES`: every endpoint you add is world-open until you set `IsAuthenticated` + an auth class (session, JWT, …). `MetaView` is explicitly `AllowAny`. |
+| `REST_FRAMEWORK` | `third_party.py` | closed by default: `DEFAULT_PERMISSION_CLASSES = IsAuthenticated`, and **no** authentication class is enabled, so every non-public endpoint answers 403 until you choose one (session for a same-origin SPA, JWT, …) in `DEFAULT_AUTHENTICATION_CLASSES`. Public endpoints say `AllowAny` explicitly and are listed in `PUBLIC_API_ROUTES` (`backend/tests/test_api_access.py`); the suite fails if the two disagree. No throttling is configured: add `DEFAULT_THROTTLE_CLASSES` before exposing login/registration endpoints. |
 | `SPECTACULAR_SETTINGS` (`DESCRIPTION`, `VERSION`, `SERVE_PERMISSIONS`) | `third_party.py` | placeholder description; Swagger UI requires admin login |
 | `DATA_UPLOAD_MAX_MEMORY_SIZE` / `FILE_UPLOAD_MAX_MEMORY_SIZE` | `base.py` | 10 MB; the edge allows 500 MB bodies on backend paths (`client_max_body_size`) |
 | Celery limits, queues, concurrency | `backend/config/celery.py`, compose `celery` command | 3 h task limit, single `celery` queue, 2 processes |

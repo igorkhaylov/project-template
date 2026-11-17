@@ -47,14 +47,21 @@ Dockerfile.dev     dev image: venv at /opt/venv, source bind-mounted by ops/comp
 | `/rosetta/` | translation UI | superusers and the "Rosetta Users" group |
 | `/__debug__/` | debug toolbar | `ENVIRONMENT=dev` and the dev dependency group only |
 
-`REST_FRAMEWORK` sets **no default permission class** and no authentication class: the
-next endpoint you add is world-open until you set `IsAuthenticated` and an auth class
-(`MetaView` is explicitly `AllowAny`). Decide this in [docs/adapting.md](../docs/adapting.md).
+**The API is closed by default.** `REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"]` is
+`IsAuthenticated`, so a view that declares nothing rejects anonymous requests. A public
+endpoint opts out explicitly (`permission_classes = (AllowAny,)`, as `MetaView` and the
+probes do) **and** is listed in `PUBLIC_API_ROUTES` in
+[`tests/test_api_access.py`](tests/test_api_access.py): that test walks every routed DRF
+view and fails when the set of anonymously reachable routes differs from the list, so an
+endpoint cannot become public by accident. No authentication class is enabled (session
+vs JWT is yours to choose, [docs/adapting.md](../docs/adapting.md)); until one is, every
+non-public endpoint answers 403.
 
 ### Adding an endpoint (and keeping the contract)
 
 1. Serializer in `apps/<app>/serializers.py`, view in `views.py`, route in `apps/<app>/urls.py`,
-   `include()` it from `config/api_v1.py` (versioned: `/api/v1/<app>/…`).
+   `include()` it from `config/api_v1.py` (versioned: `/api/v1/<app>/…`). It requires an
+   authenticated user unless you make it public on purpose (see above).
 2. `make api-schema` → commit `api/openapi.yaml` **and** `frontend/src/shared/api/schema.d.ts`.
    CI on both sides fails if either is stale.
 3. A new *top-level* prefix (anything other than `/api/…`) must also be added to the
