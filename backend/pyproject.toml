@@ -9,7 +9,7 @@ dependencies = [
     # is a separate decision because of the third-party ecosystem (modeltranslation, stdimage fork).
     "django>=5.2.17,<6.0.0",
     "psycopg[binary]>=3.3.4,<4.0.0",
-    "pillow>=12.3.0,<13.0.0",
+    "pillow>=13.0.0,<14.0.0",
     "python-decouple>=3.8,<4.0",
     "django-cors-headers>=4.9.0,<5.0.0",
     "djangorestframework>=3.18.0,<4.0.0",
@@ -20,8 +20,10 @@ dependencies = [
     "drf-spectacular>=0.30.0,<0.31.0",
     "django-filter>=26.1,<27.0",
     "python-dateutil>=2.9.0.post0,<3.0.0",
-    # redis-py 7+/8+ exists, but kombu's redis transport requires redis<6.5; the [redis]
-    # extra on celery below makes the resolver enforce that, so this range stays wide.
+    # The [redis] extra on celery below makes the resolver enforce what kombu's redis
+    # transport supports (kombu 5.7: redis>=6.4,<9). The <7 cap here is a deliberate
+    # hold: a redis-py major is taken as its own change, not as a side effect of a lock
+    # refresh.
     "redis>=6.4.0,<7.0.0",
     "celery[redis]>=5.6.3,<6.0.0",
     "django-storages[s3]>=1.14.6,<2.0.0",
