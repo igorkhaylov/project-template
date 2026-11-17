@@ -199,8 +199,10 @@ DRF view / serializer  ──make api-schema──▶  api/openapi.yaml  ──n
   `@OWNER/...` placeholders with real teams.
 - **Dependencies stay current by themselves.** `.github/dependabot.yml` opens weekly PRs per
   ecosystem (uv, npm, Docker images, compose images, Actions), minor+patch grouped; security
-  advisories open PRs immediately. Django majors, Postgres majors and TypeScript majors are
-  excluded on purpose: those are decisions, not updates.
+  advisories open PRs immediately. Python and npm releases are proposed only once they are
+  7 days old (`cooldown`), which keeps a hijacked or broken release out of the lockfiles;
+  security updates are not delayed. Django majors, Postgres majors and TypeScript majors
+  are excluded on purpose: those are decisions, not updates.
 - **Known vulnerabilities are checked on a clock.** `audit.yml` runs `make audit` daily and
   on every dependency PR: `uv audit` over `backend/uv.lock`, `npm audit` over
   `frontend/package-lock.json` (anything in runtime dependencies fails; in the dev
