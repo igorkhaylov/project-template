@@ -7,6 +7,8 @@ __pycache__/
 .env
 .env.local
 .env.*.local
+# ops/scripts/deploy.sh writes .env atomically through this temp file (removed on exit)
+.env.pin.*
 
 # uv / virtualenv (uv.lock IS committed; the venv is not)
 .venv/

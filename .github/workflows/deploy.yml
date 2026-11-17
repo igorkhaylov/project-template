@@ -12,6 +12,17 @@ name: Deploy
 #   * manually (workflow_dispatch): choose the environment and a tag per component;
 #     leave a tag empty to keep what the server currently pins.
 #
+# Trust boundary. This job holds the production SSH key, so nothing that comes from the
+# event is trusted as-is:
+#   * the automatic trigger only accepts runs of THIS repository started by a push or a
+#     manual dispatch. `workflow_run` also fires for pull requests, and its `branches:`
+#     filter matches the HEAD branch name — a fork PR from a branch called `master`
+#     would otherwise reach this job;
+#   * tags and the commit SHA are passed to the scripts through the environment (an
+#     `${{ }}` expression inside `run:` is pasted into the script as code) and are
+#     checked against a strict format before the SSH step; ops/scripts/deploy.sh
+#     validates the full image reference again on the server.
+#
 # Per-environment secrets live in GitHub Environments (prod / dev):
 #   SSH_HOST  SSH_USER  SSH_PORT  SSH_KEY   — connection (dedicated deploy keypair)
 #   SSH_FINGERPRINT                         — server host-key SHA256 (host-key pinning)
@@ -52,25 +63,58 @@ jobs:
   deploy:
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (vars.AUTO_DEPLOY == 'true' && github.event.workflow_run.conclusion == 'success')
+      (vars.AUTO_DEPLOY == 'true' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       contains(fromJSON('["push", "workflow_dispatch"]'), github.event.workflow_run.event))
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || 'prod' }}
     steps:
       - name: Resolve what to deploy
         id: plan
+        shell: bash
+        env:
+          LC_ALL: C
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_WORKFLOW: ${{ github.event.workflow_run.name }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          DISPATCH_SHA: ${{ github.sha }}
+          INPUT_BACKEND_TAG: ${{ inputs.backend_tag }}
+          INPUT_FRONTEND_TAG: ${{ inputs.frontend_tag }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            sha="${{ github.event.workflow_run.head_sha }}"
-            case "${{ github.event.workflow_run.name }}" in
-              Backend)  echo "backend_tag=sha-$sha"  >> "$GITHUB_OUTPUT" ;;
-              Frontend) echo "frontend_tag=sha-$sha" >> "$GITHUB_OUTPUT" ;;
+          set -euo pipefail
+          backend_tag="" frontend_tag=""
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            sha="$RUN_SHA"
+            case "$RUN_WORKFLOW" in
+              Backend)  backend_tag="sha-$sha" ;;
+              Frontend) frontend_tag="sha-$sha" ;;
+              *) echo "::error::Triggered by an unexpected workflow."; exit 1 ;;
             esac
-            echo "sha=$sha" >> "$GITHUB_OUTPUT"
           else
-            echo "backend_tag=${{ github.event.inputs.backend_tag }}"   >> "$GITHUB_OUTPUT"
-            echo "frontend_tag=${{ github.event.inputs.frontend_tag }}" >> "$GITHUB_OUTPUT"
-            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            sha="$DISPATCH_SHA"
+            backend_tag="$INPUT_BACKEND_TAG"
+            frontend_tag="$INPUT_FRONTEND_TAG"
           fi
+
+          # Validate BEFORE anything is written to $GITHUB_OUTPUT or sent to the server.
+          # The rejected value is never echoed: it is attacker-controlled text.
+          sha_re='^[0-9a-f]{40}$'
+          tag_re='^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$'   # the Docker tag grammar
+          [[ "$sha" =~ $sha_re ]] || { echo "::error::The commit to deploy is not a full 40-character SHA."; exit 1; }
+          for name in backend_tag frontend_tag; do
+            value="${!name}"
+            if [ -n "$value" ] && ! [[ "$value" =~ $tag_re ]]; then
+              echo "::error::$name is not a valid image tag (allowed: letters, digits, '_', '.', '-'; at most 128 characters)."
+              exit 1
+            fi
+          done
+
+          {
+            echo "backend_tag=$backend_tag"
+            echo "frontend_tag=$frontend_tag"
+            echo "sha=$sha"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1
@@ -95,11 +139,12 @@ jobs:
 
             # Docker refs must be lowercase (github.repository may contain uppercase).
             IMAGE_REPO=$(echo "$IMAGE_REPO" | tr '[:upper:]' '[:lower:]')
-            args=""
-            [ -n "$BACKEND_TAG" ]  && args="$args --backend ghcr.io/$IMAGE_REPO/backend:$BACKEND_TAG"
-            [ -n "$FRONTEND_TAG" ] && args="$args --frontend ghcr.io/$IMAGE_REPO/frontend:$FRONTEND_TAG"
-            # shellcheck disable=SC2086
-            ./ops/scripts/deploy.sh $args
+            # Arguments are built as a list and passed quoted, never as a string that the
+            # shell re-splits. deploy.sh validates each image reference before using it.
+            set --
+            [ -z "$BACKEND_TAG" ]  || set -- "$@" --backend  "ghcr.io/$IMAGE_REPO/backend:$BACKEND_TAG"
+            [ -z "$FRONTEND_TAG" ] || set -- "$@" --frontend "ghcr.io/$IMAGE_REPO/frontend:$FRONTEND_TAG"
+            ./ops/scripts/deploy.sh "$@"
 
             docker logout ghcr.io
         env:

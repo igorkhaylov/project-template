@@ -101,11 +101,19 @@ Create GitHub **Environments** `prod` (and `dev`) with these secrets:
 Then:
 
 - **Manual:** Actions → Deploy → Run workflow → environment + `backend_tag` and/or
-  `frontend_tag` (`latest`, `vX.Y.Z` or `sha-<full-sha>`; empty = unchanged).
+  `frontend_tag` (`latest`, `vX.Y.Z` or `sha-<full-sha>`; empty = unchanged). A tag that
+  is not a valid Docker tag is rejected before the SSH step.
 - **Automatic on merge:** set the repository **variable** `AUTO_DEPLOY=true`. After the
   `Backend` or `Frontend` workflow succeeds on `master`, Deploy pins that component to
   the exact `sha-<full-sha>` just built. Unset (the template default) the auto job is
   *skipped*, not failed.
+
+The deploy job holds the production SSH key, so it trusts nothing from the event: the
+automatic trigger only accepts runs of this repository started by a push or a manual
+dispatch (never a pull request), and `deploy.sh` validates every image reference against
+the image-reference grammar before writing it to `.env` — atomically, as data. Protect
+the `prod` environment with required reviewers and restrict it to the default branch
+(Settings → Environments), so that running a deploy is itself an approved action.
 
 The server's `.env` is never written by CI (an opt-in snippet for that is at the bottom
 of `deploy.yml`). The deploy does `git reset --hard` to the deployed commit to sync
@@ -116,6 +124,7 @@ compose files, nginx config and scripts; `.env` is gitignored and untouched.
 ```bash
 make prod deploy                                   # re-apply what .env pins (e.g. after a server reboot)
 ops/scripts/deploy.sh --backend ghcr.io/<owner>/<repo>/backend:sha-<previous-sha>   # rollback = re-pin
+ops/scripts/deploy.sh --backend ghcr.io/<owner>/<repo>/backend@sha256:<digest>       # or pin an immutable digest
 make prod release                                  # re-run migrations/collectstatic by hand
 make prod logs backend                             # JSON logs; `docker compose … logs` rotates at 10 MB × 5
 make prod dump                                     # DB dump (+ "media"); see backup.md

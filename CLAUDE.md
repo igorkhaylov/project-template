@@ -61,4 +61,7 @@ make up                    local production-like stack (both images built from s
   for environment-specific values. Prettier formats; `npm run check` is what CI runs.
 - CI is per component with path filters (`.github/workflows/backend.yml`,
   `frontend.yml`); `deploy.yml` deploys the component that changed.
+- Values that come from outside (CI inputs, CLI arguments) are validated and passed to
+  scripts as data — through the environment or quoted arguments — never interpolated
+  into a `perl`/`sed`/shell program or a `${{ }}` expression inside `run:`.
 - Kubernetes readiness contract: `ops/k8s/README.md`.
