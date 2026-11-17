@@ -33,10 +33,10 @@ Kubernetes-ready images from day one.
 ├── ops/                     # everything that composes the two — no application code
 │   ├── compose/             # docker-compose.yml (local, builds) · .dev.yml · .prod.yml (pull-only) · .test.yml
 │   ├── nginx/               # the edge: nginx.conf (prod) · nginx.dev.conf
-│   ├── scripts/             # init_env · ensure_minio · deploy · dump_all · restore_all
+│   ├── scripts/             # init_env · ensure_minio · deploy · audit · dump_all · restore_all
 │   ├── minio/policies/      # bucket/user policies for the shared local MinIO
 │   └── k8s/README.md        # Kubernetes contract + compose→k8s mapping
-├── .github/workflows/       # backend.yml · frontend.yml · deploy.yml
+├── .github/workflows/       # backend.yml · frontend.yml · deploy.yml · audit.yml
 ├── scripts/new_project.sh   # turn a copy of the template into your project (one command)
 ├── docs/                    # adapting · deploy · backup · uv · stdimage
 ├── Makefile                 # the single entry point: `make help`
@@ -129,6 +129,7 @@ make dev makemigrations / migrate / createsuperuser / collectstatic / makemessag
 make dev logs backend        # tail a service
 make fe-dev / fe-lint / fe-typecheck / fe-test / fe-build / fe-format / fe-check
 make api-schema              # backend → api/openapi.yaml → frontend/src/shared/api/schema.d.ts
+make audit                   # known-vulnerability audit of both lockfiles (uv audit + npm audit)
 make up / down               # local PRODUCTION-LIKE stack: both images built from source, release step, gunicorn
 make prod deploy             # SERVER: pull the pinned images and (re)start — never builds
 make minio / dump / restore / flush-cache
@@ -200,6 +201,11 @@ DRF view / serializer  ──make api-schema──▶  api/openapi.yaml  ──n
   ecosystem (uv, npm, Docker images, compose images, Actions), minor+patch grouped; security
   advisories open PRs immediately. Django majors, Postgres majors and TypeScript majors are
   excluded on purpose: those are decisions, not updates.
+- **Known vulnerabilities are checked on a clock.** `audit.yml` runs `make audit` daily and
+  on every dependency PR: `uv audit` over `backend/uv.lock`, `npm audit` over
+  `frontend/package-lock.json` (anything in runtime dependencies fails; in the dev
+  toolchain, high and critical). It covers what Dependabot cannot: a fix held back by a
+  version cap never arrives as a PR, but it does turn this job red.
 - **Independent pipelines.** `backend.yml` runs on changes under `backend/**`,
   `frontend.yml` under `frontend/**` (both also on `api/openapi.yaml`). Each builds and
   pushes its own image: `ghcr.io/<owner>/<repo>/backend` and `/frontend`.

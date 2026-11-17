@@ -1,0 +1,77 @@
+name: Audit
+
+# Known-vulnerability audit of the LOCKED dependencies of both components
+# (ops/scripts/audit.sh — the same command as `make audit`).
+#
+# Why it is not a step of Backend/Frontend CI: an advisory is published against code that
+# did not change, so the check has to run on a clock, not on a diff.
+#
+#   schedule       daily. Catches a new advisory for a version already in the lockfile —
+#                  in particular a fix that sits behind a version cap, which Dependabot
+#                  (backend: lockfile-only) can never propose as a PR.
+#   pull_request   only when a manifest, a lockfile or the audit itself changes, so a
+#                  dependency PR shows whether it leaves the tree clean. A PR that does
+#                  not touch dependencies is never blocked by an unrelated advisory.
+#   dispatch       on demand.
+#
+# When the scheduled run fails: `make audit` locally, then refresh the lockfile
+# (`uv lock --upgrade-package <name>` / `npm update <name>`) or raise the cap that holds
+# the fix back. An advisory with no fixed release yet is accepted explicitly in
+# BACKEND_IGNORE_UNTIL_FIXED (ops/scripts/audit.sh), with a reason, through review.
+#
+# No secrets and a read-only token: the jobs only read the repository and query the
+# public advisory services. Nothing is installed and no project code is executed.
+
+on:
+  schedule:
+    - cron: "23 3 * * *"   # daily 03:23 UTC (off the hour: scheduled runs queue up at :00)
+  pull_request:
+    paths:
+      - "backend/pyproject.toml"
+      - "backend/uv.lock"
+      - "backend/Dockerfile"            # pins the uv version the audit runs with
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - "ops/scripts/audit.sh"
+      - ".github/workflows/audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer run for the same ref supersedes an older one.
+concurrency:
+  group: audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Audit backend dependencies (uv.lock)
+        run: ./ops/scripts/audit.sh backend
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # Same Node line as frontend.yml, for the npm that understands this lockfile.
+      # No `npm ci`: the audit reads package-lock.json only.
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Audit frontend dependencies (package-lock.json)
+        run: ./ops/scripts/audit.sh frontend

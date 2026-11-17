@@ -6,6 +6,7 @@
 #   make up                 # local production-like stack (builds both images, release step, gunicorn)
 #   make prod deploy        # SERVER: pull the pinned registry images and (re)start (no build)
 #   make api-schema         # regenerate api/openapi.yaml + frontend/src/shared/api/schema.d.ts
+#   make audit              # known-vulnerability audit of both lockfiles (what the Audit workflow runs)
 #   make dev makemigrations # run a manage.py command in the dev stack
 #   make dev logs backend   # tail logs of a service
 #   make minio              # provision bucket on the SHARED local MinIO (host service)
@@ -37,7 +38,7 @@ ARGS = $(filter-out dev prod $@,$(MAKECMDGOALS))
 KNOWN_TARGETS := help init up run worker beat down down-v build pull deploy release ps logs shell dbshell \
         migrate makemigrations makemessages compilemessages collectstatic \
         createsuperuser test lint format pre-commit-install minio flush-cache \
-        flush-redis dump restore bash bash-db bash-nginx api-schema \
+        flush-redis dump restore bash bash-db bash-nginx api-schema audit \
         fe-install fe-dev fe-lint fe-typecheck fe-test fe-build fe-types fe-format fe-check
 
 .PHONY: dev prod $(KNOWN_TARGETS)
@@ -68,6 +69,8 @@ help:
 	@echo "  fe-install fe-dev fe-lint fe-typecheck fe-test fe-build fe-types fe-format fe-check"
 	@echo "API contract:"
 	@echo "  api-schema                       # backend -> api/openapi.yaml -> frontend/src/shared/api/schema.d.ts"
+	@echo "Security:"
+	@echo "  audit [backend|frontend]         # known-vulnerability audit of the locked dependencies"
 
 dev:
 	@:
@@ -192,6 +195,14 @@ api-schema:
 	$(TEST_COMPOSE) run --rm --no-deps -T backend python manage.py spectacular --validate > api/openapi.yaml
 	@echo "wrote api/openapi.yaml"
 	cd frontend && npm run api:types
+
+# --- Dependency audit ---
+# Known vulnerabilities in what the lockfiles pin (backend/uv.lock via `uv audit` from the
+# uv image the Dockerfile pins, frontend/package-lock.json via `npm audit`). Reads the
+# lockfiles only: no stack has to be running. `make audit backend` / `make audit frontend`
+# for one side. The Audit workflow runs exactly this, daily and on dependency PRs.
+audit:
+	./ops/scripts/audit.sh $(ARGS)
 
 # --- Frontend (host-side; Node 24+) ---
 fe-install:
