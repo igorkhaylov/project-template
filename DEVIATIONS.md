@@ -56,6 +56,7 @@
 | B17 | `tests/test_common.py` | `test_healthcheck` (`/healthcheck/`) удалён (B12); добавлены тесты `/healthz/` с чужим Host, `/readyz/`, совпадения вьюх и middleware, наличия путей в схеме, `/api/v1/meta/` | Покрытие новых контрактов | в силе |
 | B18 | `locale/ru/.../django.po`, `apps/users/locale/ru/.../django.po` | В комментарии заголовка `django-template` → `project-template` (английские `.po` такого заголовка не имеют и не тронуты) | Косметика; `scripts/new_project.sh` подставит имя проекта | в силе |
 | B19 | `apps/common/firebase.py` | В docstring путь `docker-compose.prod.yml` → `ops/compose/docker-compose.prod.yml` | Комментарий, актуальный путь | в силе |
+| B21 | `pyproject.toml`, `uv.lock` | `pillow>=12.3.0,<13.0.0` → `>=13.0.0,<14.0.0`; lock обновлён в пределах остальных ограничений (40 пакетов, в т.ч. Django 5.2.18 → 5.2.19, Celery 5.6.3 → 5.7.0, kombu 5.7.0) с отступом 7 дней от даты публикации (`--exclude-newer`, в lock не записан); комментарий к `redis` приведён в соответствие с kombu 5.7 (ограничение `<7` оставлено как осознанное) | В Pillow 12.3.0 62 известные уязвимости (переполнения кучи в декодерах, DoS), исправление только в 13.0.0; Pillow обрабатывает загружаемые пользователями изображения (`StdImageField`). Заодно закрыты certifi, pyasn1, opentelemetry-api, filelock, virtualenv. `uv audit` чист, тесты проходят | в силе |
 
 ## C. Бэкенд: новые файлы (оригинал не затронут)
 
@@ -88,3 +89,4 @@
 - Пробы: `/healthz/` ничего не проверяет намеренно (liveness), `/readyz/` отдаёт 503 с перечнем проверок. Оригинальный `/healthcheck/` эквивалентен `/healthz/`, но не обходил проверку Host.
 - При откате B6/B11 (django-celery-beat) нужно одновременно вернуть D3 и строку `beat_schedule_filename`.
 - При откате B13 (разделение entrypoint) нужно одновременно убрать D1 и вернуть `start_period: 60s` в D2; `release.sh` можно оставить для Kubernetes.
+- B21: ограничение `redis<7` теперь держит только наше решение (kombu 5.7 допускает `redis<9`); redis-py 8.1 проверен с Django-кэшем и брокером Celery на живом Redis, но в lock не взят.

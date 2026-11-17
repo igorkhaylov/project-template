@@ -20,7 +20,7 @@ updates:
       # Django stays on the 5.2 LTS line until 6.2 LTS.
       - dependency-name: django
         update-types: ["version-update:semver-major"]
-      # kombu's redis transport pins redis<6.5; a redis major is useless until kombu moves.
+      # A redis-py major is a deliberate change of its own (kombu 5.7 accepts redis<9).
       - dependency-name: redis
         update-types: ["version-update:semver-major"]
 
