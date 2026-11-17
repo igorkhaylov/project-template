@@ -3,6 +3,11 @@
 # frontend.yml), so a green PR is safe to merge. Security advisories additionally open
 # PRs as soon as they are published (Dependabot alerts are enabled on the repository).
 #
+# Cooldown (uv, npm): a release is proposed only once it is 7 days old. Most hijacked or
+# broken releases are yanked within days, so the wait keeps them out of the lockfiles;
+# Dependabot's own default is 3 days. It applies to version updates only — a security
+# update for a published advisory is never delayed by it.
+#
 # What Dependabot cannot do here: the backend runs lockfile-only (below), so a fix that
 # needs a version cap raised in pyproject.toml never arrives as a PR. The daily Audit
 # workflow (.github/workflows/audit.yml) is the backstop: it fails on a known
@@ -18,6 +23,8 @@ updates:
     # are deliberate (Django LTS line, redis bounded by kombu). Without this Dependabot
     # widened the redis cap and pulled a kombu pre-release to satisfy it.
     versioning-strategy: lockfile-only
+    cooldown:
+      default-days: 7
     groups:
       backend-minor-and-patch:
         update-types: [minor, patch]
@@ -34,6 +41,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     groups:
       frontend-minor-and-patch:
         update-types: [minor, patch]
