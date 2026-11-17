@@ -43,6 +43,11 @@ make up                    local production-like stack (both images built from s
   answers them first (keep it first in `MIDDLEWARE`: that is what bypasses
   `ALLOWED_HOSTS` for probes); the routed views in `common.views` put them in the
   OpenAPI schema. Change the payload in `common.health` and the serializers together.
+- **Public API endpoints.** The API is closed by default (`DEFAULT_PERMISSION_CLASSES =
+  IsAuthenticated`). A view that must answer anonymously sets `permission_classes =
+  (AllowAny,)` **and** its route name is added to `PUBLIC_API_ROUTES` in
+  `backend/tests/test_api_access.py`; the suite fails when the two disagree. Never
+  loosen the default to open an endpoint.
 - **Release step vs web process.** `backend/scripts/release.sh` (migrate, collectstatic,
   first superuser) runs once per deploy; `scripts/entrypoint.sh` only starts gunicorn.
   Never move migrations back into the web process.

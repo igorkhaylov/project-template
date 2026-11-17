@@ -57,6 +57,7 @@
 | B18 | `locale/ru/.../django.po`, `apps/users/locale/ru/.../django.po` | В комментарии заголовка `django-template` → `project-template` (английские `.po` такого заголовка не имеют и не тронуты) | Косметика; `scripts/new_project.sh` подставит имя проекта | в силе |
 | B19 | `apps/common/firebase.py` | В docstring путь `docker-compose.prod.yml` → `ops/compose/docker-compose.prod.yml` | Комментарий, актуальный путь | в силе |
 | B21 | `pyproject.toml`, `uv.lock` | `pillow>=12.3.0,<13.0.0` → `>=13.0.0,<14.0.0`; lock обновлён в пределах остальных ограничений (40 пакетов, в т.ч. Django 5.2.18 → 5.2.19, Celery 5.6.3 → 5.7.0, kombu 5.7.0) с отступом 7 дней от даты публикации (`--exclude-newer`, в lock не записан); комментарий к `redis` приведён в соответствие с kombu 5.7 (ограничение `<7` оставлено как осознанное) | В Pillow 12.3.0 62 известные уязвимости (переполнения кучи в декодерах, DoS), исправление только в 13.0.0; Pillow обрабатывает загружаемые пользователями изображения (`StdImageField`). Заодно закрыты certifi, pyasn1, opentelemetry-api, filelock, virtualenv. `uv audit` чист, тесты проходят | в силе |
+| B22 | `config/settings/third_party.py` | В `REST_FRAMEWORK` добавлен `DEFAULT_PERMISSION_CLASSES = (IsAuthenticated,)`; классы аутентификации по-прежнему не выбраны (решение проекта) | API закрыт по умолчанию: view без `permission_classes` больше не публичен. Публичные эндпоинты (`/healthz/`, `/readyz/`, `/api/v1/meta/`) уже объявляют `AllowAny` явно, схема `api/openapi.yaml` не изменилась. Контроль: C9 | в силе |
 
 ## C. Бэкенд: новые файлы (оригинал не затронут)
 
@@ -71,6 +72,7 @@
 | C7 | `backend/README.md` | Документация бэкенда (часть прежнего корневого README) |
 | B20 | `pyrightconfig.json`, `pyproject.toml` | `extraPaths: ["apps"]`, исключены миграции, `reportMissingImports` понижен до warning (опциональный `firebase_admin`); в dev-группу добавлен `django-types` | На чистом дереве pyright давал 75 ошибок, из них 54 вне тестов: не резолвился `users.models`, Django без стабов | в силе |
 | C8 | `backend/.python-version` | `3.13`: хостовый venv (`uv sync`) на том же интерпретаторе, что и Docker-образ; без файла uv брал системный Python 3.14 |
+| C9 | `tests/test_api_access.py` | Тесты закрытости API: view без объявленных прав отклоняет анонимный запрос; множество анонимно доступных DRF-маршрутов (обход всего URLconf, проверка по поведению permission-классов) обязано совпадать со списком `PUBLIC_API_ROUTES`; `/api/schema/` и `/api/docs/` требуют staff (B22) |
 
 ## D. Compose: сервисы бэкенда
 
@@ -89,4 +91,5 @@
 - Пробы: `/healthz/` ничего не проверяет намеренно (liveness), `/readyz/` отдаёт 503 с перечнем проверок. Оригинальный `/healthcheck/` эквивалентен `/healthz/`, но не обходил проверку Host.
 - При откате B6/B11 (django-celery-beat) нужно одновременно вернуть D3 и строку `beat_schedule_filename`.
 - При откате B13 (разделение entrypoint) нужно одновременно убрать D1 и вернуть `start_period: 60s` в D2; `release.sh` можно оставить для Kubernetes.
+- При откате B22 (`DEFAULT_PERMISSION_CLASSES`) нужно одновременно убрать или переписать C9: `test_api_is_closed_by_default` проверяет именно этот дефолт.
 - B21: ограничение `redis<7` теперь держит только наше решение (kombu 5.7 допускает `redis<9`); redis-py 8.1 проверен с Django-кэшем и брокером Celery на живом Redis, но в lock не взят.
