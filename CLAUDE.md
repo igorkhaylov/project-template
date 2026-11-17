@@ -26,6 +26,7 @@ make fe-dev                Vite dev server on the host (:5173; also proxied at :
 make dev test / dev lint   pytest / ruff inside the dev container
 make fe-test / fe-lint / fe-typecheck
 make api-schema            regenerate api/openapi.yaml + frontend/src/shared/api/schema.d.ts (commit both)
+make audit                 known-vulnerability audit of both lockfiles (what the Audit workflow runs)
 make up                    local production-like stack (both images built from source)
 ```
 
@@ -65,7 +66,11 @@ make up                    local production-like stack (both images built from s
   only; runtime config through `src/shared/config/appConfig.ts`, never `import.meta.env`
   for environment-specific values. Prettier formats; `npm run check` is what CI runs.
 - CI is per component with path filters (`.github/workflows/backend.yml`,
-  `frontend.yml`); `deploy.yml` deploys the component that changed.
+  `frontend.yml`); `deploy.yml` deploys the component that changed; `audit.yml` runs
+  `ops/scripts/audit.sh` daily and on dependency PRs.
+- Dependency updates: refresh lockfiles (`uv lock --upgrade`, `npm update`), then
+  `make audit`. Version caps in `backend/pyproject.toml` are deliberate; raising one is
+  its own change with a row in `DEVIATIONS.md`.
 - Values that come from outside (CI inputs, CLI arguments) are validated and passed to
   scripts as data — through the environment or quoted arguments — never interpolated
   into a `perl`/`sed`/shell program or a `${{ }}` expression inside `run:`.

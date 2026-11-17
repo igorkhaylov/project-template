@@ -2,6 +2,11 @@
 # noise stays low; majors arrive as separate PRs. CI runs on every PR (backend.yml /
 # frontend.yml), so a green PR is safe to merge. Security advisories additionally open
 # PRs as soon as they are published (Dependabot alerts are enabled on the repository).
+#
+# What Dependabot cannot do here: the backend runs lockfile-only (below), so a fix that
+# needs a version cap raised in pyproject.toml never arrives as a PR. The daily Audit
+# workflow (.github/workflows/audit.yml) is the backstop: it fails on a known
+# vulnerability in whatever the lockfiles pin, whatever the reason it is still pinned.
 version: 2
 updates:
   - package-ecosystem: uv
@@ -33,7 +38,8 @@ updates:
       frontend-minor-and-patch:
         update-types: [minor, patch]
     ignore:
-      # TypeScript 6+/7 is not supported by typescript-eslint yet.
+      # openapi-typescript 7 requires typescript ^5 (typescript-eslint already accepts 6.0);
+      # TypeScript 7 is supported by neither yet.
       - dependency-name: typescript
         update-types: ["version-update:semver-major"]
 
