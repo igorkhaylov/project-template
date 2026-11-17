@@ -167,14 +167,21 @@ services:
           cpus: "1.0"
           memory: 1g
 
-  # Optional automated PostgreSQL backups (tiredofit/db-backup). DISABLED by default:
-  # it only starts when the "backup" compose profile is active. Enable it by setting
+  # Optional automated PostgreSQL backups (nfrastack/db-backup, formerly
+  # tiredofit/docker-db-backup). DISABLED by default: it only starts when the "backup"
+  # compose profile is active. Enable it by setting
   #   COMPOSE_PROFILES=backup
   # in ./.env (then `make prod deploy` picks it up). Scope: DATABASE ONLY. Media lives
   # in S3/MinIO — back that up with bucket versioning/replication and/or `make dump media`
   # (docs/backup.md). Target + schedule + retention are all set in .env.
+  #
+  # The image is pinned by tag AND digest: this container holds the database password
+  # and, for the S3 target, storage keys, so what runs must be exactly what was verified
+  # (a tag can be re-pushed, a digest cannot). 4.9.2 is deliberately the LAST 4.x
+  # release: it wraps the real `pg_dump`. 5.x is a rewrite that generates the dump with
+  # its own engine — moving to it is a decision, not an update (docs/backup.md).
   db-backup:
-    image: ${DB_BACKUP_IMAGE:-ghcr.io/tiredofit/docker-db-backup:4.9.2}
+    image: ${DB_BACKUP_IMAGE:-ghcr.io/nfrastack/db-backup:4.9.2@sha256:7dc1b80d28fe420b8e0bc10666e7318943cd10ed52ceca1819ffe6f03aa2bc0a}
     profiles: ["backup"]
     logging: *default-logging
     depends_on:

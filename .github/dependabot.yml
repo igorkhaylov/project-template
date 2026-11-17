@@ -60,6 +60,10 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: redis
         update-types: ["version-update:semver-major"]
+      # db-backup stays on the last 4.x release (the one that wraps pg_dump); 5.x is a
+      # rewrite with its own dump engine — a decision, not an update (docs/backup.md).
+      - dependency-name: "*db-backup*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /

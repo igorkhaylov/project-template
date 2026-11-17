@@ -77,8 +77,28 @@ docker compose exec -T backend python manage.py rewrite_media_urls \
 
 The `make dump` flow above is **manual and on-demand**. For scheduled, retained,
 optionally offsite DB backups in production, `ops/compose/docker-compose.prod.yml` ships an optional
-`db-backup` service ([tiredofit/db-backup](https://github.com/tiredofit/docker-db-backup)),
-**disabled by default** behind the `backup` compose profile.
+`db-backup` service ([nfrastack/db-backup](https://github.com/nfrastack/db-backup), formerly
+`tiredofit/docker-db-backup`), **disabled by default** behind the `backup` compose profile.
+
+**Which version, and why it is pinned by digest.** The service runs
+`ghcr.io/nfrastack/db-backup:4.9.2@sha256:…` — the tag for readability, the digest so
+that what runs is byte-for-byte what was verified (this container holds the database
+password and, for the S3 target, storage keys). `4.9.2` is deliberately the **last 4.x
+release**:
+
+- 4.x wraps the real `pg_dump` (18.x client, which dumps a 17 server); its dumps restore
+  into PostgreSQL 17 with plain `psql` (verified, see the restore command below).
+- 5.x is a rewrite: a new binary that generates the dump with its **own engine instead
+  of `pg_dump`**, under an open-core licence (some features, e.g. encryption, need a
+  paid licence) and with a version check that calls the vendor by default
+  (`CHECK_NEW_VERSION`). Its container still reads `DB01_*`-style variables, but whether
+  the ones used here behave the same is **not verified**. Adopting it means re-validating
+  backups *and restores*; that is a decision, not a routine update, so Dependabot is told
+  to skip that major.
+- The 4.x line no longer gets releases. Review this choice when you move to a new
+  PostgreSQL major (the bundled client must be at least as new as the server) — the
+  alternatives are the managed database's own backups, or a small `pg_dump` cron
+  running from the official `postgres` image.
 
 **Scope: database only.** Media stays on the tooling above plus S3/MinIO bucket
 versioning/replication — this service never touches it.
