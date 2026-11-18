@@ -84,7 +84,7 @@ environment, and either directory can later be moved into its own repository wit
 |---|---|---|
 | **Docker** with the Compose plugin | everything | Docker Desktop on macOS/Windows; Docker Engine ≥ 20.10 on Linux (`host.docker.internal` is mapped via `extra_hosts`) |
 | **make**, **openssl** | all commands; `make init` generates secrets | preinstalled on macOS/Linux |
-| **Node 24+** / **npm** | frontend dev server, lint, tests | the frontend runs on the host, not in a container (fast HMR) |
+| **Node 24.15+** / **npm** | frontend dev server, lint, tests | the frontend runs on the host, not in a container (fast HMR) |
 | **uv** (optional) | host virtualenv for the editor, backend tests without Docker | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | **ruff** + **pre-commit** (optional) | git hooks: ruff for `backend/`, prettier + eslint for `frontend/` (from `frontend/node_modules`) | `uv tool install ruff pre-commit`, then `pre-commit install` |
 
