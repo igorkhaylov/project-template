@@ -92,7 +92,7 @@ init:
 	$(DEV_COMPOSE) exec backend python manage.py migrate
 	$(DEV_COMPOSE) exec backend python manage.py collectstatic --no-input
 	@if command -v npm >/dev/null 2>&1; then cd frontend && npm ci; \
-	else echo "npm not found — skipping frontend deps (install Node 24+, then: make fe-install)"; fi
+	else echo "npm not found — skipping frontend deps (install Node 24.15+, then: make fe-install)"; fi
 	@echo ""
 	@echo "Done. Next steps:"
 	@echo "  make dev createsuperuser    # create your admin account"
@@ -204,7 +204,7 @@ api-schema:
 audit:
 	./ops/scripts/audit.sh $(ARGS)
 
-# --- Frontend (host-side; Node 24+) ---
+# --- Frontend (host-side; Node 24.15+) ---
 fe-install:
 	cd frontend && npm ci
 
